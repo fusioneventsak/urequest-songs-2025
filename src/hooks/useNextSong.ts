@@ -15,10 +15,10 @@ export function useNextSong() {
     // Query the database directly for the currently locked, unplayed song
     const { data, error } = await supabase
       .from('requests')
-      .select('title, artist, is_locked, is_played, created_at')
+      .select('title, artist, is_locked, is_played')
       .eq('is_locked', true)
       .eq('is_played', false)
-      .order('created_at', { ascending: false })
+      .order('updated_at', { ascending: false })
       .limit(1);
 
     if (error) {
