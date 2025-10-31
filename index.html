@@ -7,14 +7,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>uRequest Live - Band Request Hub</title>
     
-    <!-- Official Vite React Fast Refresh preamble (dev only) -->
-    <script type="module" src="/@vite/client"></script>
+    <!-- Vite React Fast Refresh preamble (load only in local dev) -->
     <script type="module">
-      import RefreshRuntime from '/@react-refresh';
-      RefreshRuntime.injectIntoGlobalHook(window);
-      window.$RefreshReg$ = () => {};
-      window.$RefreshSig$ = () => (type) => type;
-      window.__vite_plugin_react_preamble_installed__ = true;
+      const isLocalDev = ['localhost', '127.0.0.1'].includes(location.hostname);
+      if (isLocalDev) {
+        import('/@vite/client');
+        import('/@react-refresh').then((RefreshRuntime) => {
+          RefreshRuntime.injectIntoGlobalHook(window);
+          window.$RefreshReg$ = () => {};
+          window.$RefreshSig$ = () => (type) => type;
+          window.__vite_plugin_react_preamble_installed__ = true;
+        }).catch(() => {});
+      }
     </script>
     
     <!-- Instant Color Loading Script - Must be before any React code -->
