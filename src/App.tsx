@@ -1081,7 +1081,12 @@ function App() {
   if (!currentUser) {
     return (
       <ErrorBoundary>
-        <LandingPage onComplete={handleUserUpdate} />
+        <div className="min-h-screen bg-darker-purple flex items-center justify-center p-6">
+          <div className="glass-effect rounded-lg p-6 text-center space-y-2">
+            <h2 className="text-xl font-semibold text-white">Welcome to uRequest Live</h2>
+            <p className="text-gray-300">No user profile found. Go to Backend → Settings to configure your band profile.</p>
+          </div>
+        </div>
       </ErrorBoundary>
     );
   }
