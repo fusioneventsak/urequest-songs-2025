@@ -24,6 +24,7 @@ import { Logo } from './components/shared/Logo';
 import { LatestRequest } from './components/LatestRequest';
 import { TickerManager } from './components/TickerManager';
 import { useNextSong } from './hooks/useNextSong';
+import { LandingPage } from './components/LandingPage';
 
 const DEFAULT_BAND_LOGO = "https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png";
 const BACKEND_PATH = "backend";
