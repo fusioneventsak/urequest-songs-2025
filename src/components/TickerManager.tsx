@@ -115,16 +115,16 @@ export function TickerManager({
   }, []);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold neon-text">Ticker Management</h2>
-        <div className="flex items-center space-x-3">
+        <h2 className="text-lg font-semibold neon-text">Ticker Management</h2>
+        <div className="flex items-center space-x-2">
           {/* Clear Message Button */}
           {(localMessage.trim() || isActive) && (
             <button
               onClick={clearMessage}
               disabled={isUpdating}
-              className="neon-button bg-gray-600 hover:bg-gray-700 disabled:opacity-50"
+              className="neon-button bg-gray-600 hover:bg-gray-700 disabled:opacity-50 px-3 py-1 text-sm"
             >
               {isUpdating ? 'Clearing...' : 'Clear Message'}
             </button>
@@ -134,23 +134,23 @@ export function TickerManager({
           <button
             onClick={handleToggleActive}
             disabled={isUpdating || (!isActive && !localMessage.trim())}
-            className={`neon-button flex items-center disabled:opacity-50 ${
+            className={`neon-button flex items-center disabled:opacity-50 px-3 py-1 text-sm ${
               isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
             }`}
           >
             {isUpdating ? (
               <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                 Updating...
               </>
             ) : isActive ? (
               <>
-                <Pause className="w-4 h-4 mr-2" />
+                <Pause className="w-3 h-3 mr-2" />
                 Stop Custom Message
               </>
             ) : (
               <>
-                <Play className="w-4 h-4 mr-2" />
+                <Play className="w-3 h-3 mr-2" />
                 Start Custom Message
               </>
             )}
@@ -158,32 +158,32 @@ export function TickerManager({
         </div>
       </div>
 
-      <div className="glass-effect rounded-lg p-6 space-y-6">
+      <div className="glass-effect rounded-lg p-3 space-y-4">
         <div>
-          <h3 className="text-lg font-medium text-white mb-4">Current Status</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-4 rounded-lg bg-neon-purple/10">
-              <div className="flex items-center space-x-2 mb-2">
-                <Music className="w-5 h-5 text-neon-pink" />
-                <span className="font-medium text-white">Next Song</span>
+          <h3 className="text-base font-medium text-white mb-2">Current Status</h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-2 rounded-lg bg-neon-purple/10">
+              <div className="flex items-center space-x-2 mb-1">
+                <Music className="w-4 h-4 text-neon-pink" />
+                <span className="font-medium text-white text-sm">Next Song</span>
               </div>
               {nextSong ? (
-                <p className="text-gray-300">
+                <p className="text-gray-300 text-sm">
                   {nextSong.title}
                   {nextSong.artist && <span className="text-gray-400"> by {nextSong.artist}</span>}
                 </p>
               ) : (
-                <p className="text-gray-400 italic">No song locked</p>
+                <p className="text-gray-400 italic text-sm">No song locked</p>
               )}
             </div>
-            <div className="p-4 rounded-lg bg-neon-purple/10">
-              <div className="flex items-center space-x-2 mb-2">
-                <Type className="w-5 h-5 text-neon-pink" />
-                <span className="font-medium text-white">Custom Message</span>
+            <div className="p-2 rounded-lg bg-neon-purple/10">
+              <div className="flex items-center space-x-2 mb-1">
+                <Type className="w-4 h-4 text-neon-pink" />
+                <span className="font-medium text-white text-sm">Custom Message</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-400' : 'bg-gray-400'}`} />
-                <p className={`${isActive ? 'text-green-400' : 'text-gray-400'}`}>
+                <p className={`${isActive ? 'text-green-400' : 'text-gray-400'} text-sm`}>
                   {isActive ? 'Active' : 'Inactive'}
                 </p>
                 {isUpdating && (
@@ -195,23 +195,23 @@ export function TickerManager({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-white mb-2">
+          <label className="block text-sm font-medium text-white mb-1">
             Custom Message
           </label>
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <textarea
               value={localMessage}
               onChange={(e) => handleInputChange(e.target.value)}
               placeholder="Enter a custom message to display in the ticker..."
-              className="w-full px-4 py-2 bg-neon-purple/10 border border-neon-purple/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-neon-pink disabled:opacity-50"
+              className="w-full px-3 py-1.5 bg-neon-purple/10 border border-neon-purple/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-neon-pink disabled:opacity-50 text-sm"
               rows={2}
               disabled={isUpdating}
             />
             <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-400">
+              <p className="text-xs text-gray-400">
                 Type your message, then click "Start Custom Message" to send it live
               </p>
-              <p className="text-xs text-gray-500">
+              <p className="text-[11px] text-gray-500">
                 {localMessage.length} characters
               </p>
             </div>
@@ -221,14 +221,14 @@ export function TickerManager({
         <div>
           <button
             onClick={() => setShowPreview(!showPreview)}
-            className="text-neon-pink hover:text-white transition-colors"
+            className="text-neon-pink hover:text-white transition-colors text-sm"
           >
             {showPreview ? 'Hide Preview' : 'Show Preview'}
           </button>
           
           {showPreview && (
-            <div className="mt-4 p-4 rounded-lg bg-darker-purple border border-neon-purple/20">
-              <p className="text-white text-sm mb-2">
+            <div className="mt-2 p-3 rounded-lg bg-darker-purple border border-neon-purple/20">
+              <p className="text-white text-sm mb-1">
                 <strong>Ticker will display:</strong>
               </p>
               <p className="text-white" style={{

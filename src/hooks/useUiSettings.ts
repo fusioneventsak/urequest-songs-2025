@@ -57,7 +57,8 @@ const applyColorsInstantly = (colors: Record<string, string>) => {
   // Save to localStorage for next visit
   localStorage.setItem('uiColors', JSON.stringify(colors));
   
-  console.log('Applied colors instantly via CSS injection:', colors);
+  // Minimal logging
+  console.log('🎨 Colors applied');
 };
 
 export function useUiSettings() {
@@ -152,7 +153,7 @@ export function useUiSettings() {
         try {
           const colors = JSON.parse(savedColors);
           applyColorsInstantly(colors);
-          console.log('📱 Applied colors from localStorage due to network error');
+          console.log('📱 Using saved colors (offline mode)');
           
           // Create mock settings from localStorage colors
           const mockSettings: UiSettings = {

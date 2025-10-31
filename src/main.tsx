@@ -4,6 +4,13 @@ import { Toaster } from 'react-hot-toast';
 import App from './App';
 import './index.css';
 
+// In development, unregister any existing service workers to prevent stale caches
+if (location.protocol !== 'https:' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(reg => reg.unregister().catch(() => {}));
+  }).catch(() => {});
+}
+
 // Safely get root element
 const rootElement = document.getElementById('root');
 if (!rootElement) {

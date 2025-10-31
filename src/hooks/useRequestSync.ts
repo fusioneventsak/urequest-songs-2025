@@ -11,7 +11,10 @@ interface CachedData {
   timestamp: number;
 }
 
-export function useRequestSync(onUpdate: (requests: SongRequest[]) => void) {
+export function useRequestSync(
+  onUpdate: (requests: SongRequest[]) => void,
+  options?: { status?: 'pending' | 'played'; onlyUnplayed?: boolean }
+) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -52,7 +55,8 @@ export function useRequestSync(onUpdate: (requests: SongRequest[]) => void) {
 
       // FIXED: Use direct query instead of missing function
       console.log('🔄 Fetching requests with requesters...');
-      const { data: requestsData, error: requestsError } = await supabase
+      console.log('🔍 Filter options:', options);
+      let query = supabase
         .from('requests')
         .select(`
           *,
@@ -65,6 +69,23 @@ export function useRequestSync(onUpdate: (requests: SongRequest[]) => void) {
           )
         `)
         .order('created_at', { ascending: false });
+
+      if (options?.onlyUnplayed) {
+        // @ts-ignore column exists
+        query = query.eq('is_played', false);
+      }
+      if (options?.status) {
+        // @ts-ignore column exists
+        query = query.eq('status', options.status);
+        console.log('🔍 Applied status filter:', options.status);
+      }
+
+      console.log('🔍 About to execute query with filters:', {
+        onlyUnplayed: options?.onlyUnplayed,
+        status: options?.status
+      });
+      
+      const { data: requestsData, error: requestsError } = await query;
 
       console.log('🔍 DEBUG - Raw Supabase Response:');
       console.log('- Error:', requestsError);
@@ -106,7 +127,7 @@ export function useRequestSync(onUpdate: (requests: SongRequest[]) => void) {
           status: request.status as any,
           isLocked: request.is_locked || false,
           isPlayed: request.is_played || false,
-          createdAt: new Date(request.created_at)
+          createdAt: new Date(request.created_at).toISOString()
         };
       });
 
@@ -114,9 +135,23 @@ export function useRequestSync(onUpdate: (requests: SongRequest[]) => void) {
       console.log('📊 Formatted data preview:', transformedRequests.map(r => ({
         id: r.id,
         title: r.title,
+        status: r.status,
         isPlayed: r.isPlayed,
         requesters: r.requesters.length
       })));
+      
+      // Log specific request if it exists
+      const specificRequest = transformedRequests.find(r => r.id === '159e1f84-599d-4e93-94c1-52f9da3ed743');
+      if (specificRequest) {
+        console.log('🔍 Found specific request 159e1f84:', {
+          id: specificRequest.id,
+          title: specificRequest.title,
+          status: specificRequest.status,
+          isPlayed: specificRequest.isPlayed,
+          raw_status: requestsData?.find(r => r.id === '159e1f84-599d-4e93-94c1-52f9da3ed743')?.status,
+          raw_is_played: requestsData?.find(r => r.id === '159e1f84-599d-4e93-94c1-52f9da3ed743')?.is_played
+        });
+      }
 
       if (mountedRef.current) {
         console.log('🚀 About to call onUpdate with:', transformedRequests.length, 'requests');
@@ -145,7 +180,12 @@ export function useRequestSync(onUpdate: (requests: SongRequest[]) => void) {
       }
       fetchInProgressRef.current = false;
     }
-  }, [onUpdate, retryCount]);
+  }, [onUpdate, retryCount, options?.status, options?.onlyUnplayed]);
+
+  // Clear cache when filter options change
+  useEffect(() => {
+    cacheRef.current = null;
+  }, [options?.status, options?.onlyUnplayed]);
 
   // Setup real-time subscription with debouncing
   useEffect(() => {

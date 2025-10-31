@@ -19,15 +19,11 @@ import { LogOut } from 'lucide-react';
 import { SongLibrary } from './components/SongLibrary';
 import { SetListManager } from './components/SetListManager';
 import { QueueView } from './components/QueueView';
-import { SettingsManager } from './components/SettingsManager';
-import { LogoManager } from './components/LogoManager';
-import { ColorCustomizer } from './components/ColorCustomizer';
-import { LogoDebugger } from './components/LogoDebugger';
-import { TickerManager } from './components/TickerManager';
 import { BackendTabs } from './components/BackendTabs';
-import { LandingPage } from './components/LandingPage';
 import { Logo } from './components/shared/Logo';
-import { KioskPage } from './components/KioskPage';
+import { LatestRequest } from './components/LatestRequest';
+import { TickerManager } from './components/TickerManager';
+import { useNextSong } from './hooks/useNextSong';
 
 const DEFAULT_BAND_LOGO = "https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png";
 const BACKEND_PATH = "backend";
@@ -80,67 +76,39 @@ function App() {
   
   // Initialize data synchronization
   const { isLoading: isFetchingSongs } = useSongSync(setSongs);
-  const { isLoading: isFetchingRequests, reconnect: reconnectRequests } = useRequestSync(setRequests);
+  // Backend queue filter state
+  const [queueFilter, setQueueFilter] = useState<'pending' | 'played' | 'all'>('pending');
+  const { isLoading: isFetchingRequests, refresh: refreshRequests } = useRequestSync(
+    setRequests,
+    { status: queueFilter === 'all' ? undefined : queueFilter }
+  );
   const { isLoading: isFetchingSetLists, refetch: refreshSetLists } = useSetListSync(setSetLists);
+  // Database-driven Next Song
+  const dbNextSong = useNextSong();
 
-  // SUPABASE CONNECTION TEST
+  // SUPABASE CONNECTION TEST (reduced logging)
   useEffect(() => {
     const testSupabaseConnection = async () => {
-      console.log('🔍 Testing Supabase connection...');
-      console.log('URL:', import.meta.env.VITE_SUPABASE_URL);
-      console.log('Has Anon Key:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
-      
       try {
-        // Test basic connection
-        const { data, error } = await supabase
+        // Test basic connection with correct count syntax
+        const { data, error, count } = await supabase
           .from('requests')
-          .select('count(*)', { count: 'exact', head: true });
+          .select('*', { count: 'exact', head: true });
         
         if (error) {
-          console.error('❌ Supabase connection failed:', error);
-          console.error('Error details:', {
-            message: error.message,
-            code: error.code,
-            details: error.details,
-            hint: error.hint
-          });
+          console.error('❌ Supabase connection failed:', error.message || 'Unknown error');
           
-          // Check if it's a URL issue
-          if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-            console.error('🌐 This looks like a network/URL issue');
-            console.log('Current URL being used:', import.meta.env.VITE_SUPABASE_URL);
-            
-            // Check if URL ends with .co instead of .com
-            const url = import.meta.env.VITE_SUPABASE_URL;
-            if (url && url.includes('.supabase.co')) {
-              console.log('✅ URL looks correct (uses .supabase.co)');
-            } else {
-              console.log('⚠️ URL might be incorrect - should end with .supabase.co');
-            }
+          // Check specific error types
+          if (error.code === 'PGRST301') {
+            console.error('🔑 Check VITE_SUPABASE_ANON_KEY in .env file');
+          } else if (error.code === 'PGRST000') {
+            console.error('🏗️ Database schema issue');
           }
         } else {
-          console.log('✅ Supabase connection successful!');
-          console.log('Request count:', data);
-          
-          // Now test if we can fetch actual requests
-          try {
-            const { data: requestsData, error: requestsError } = await supabase
-              .from('requests')
-              .select('id, title, is_played')
-              .limit(5);
-              
-            if (requestsError) {
-              console.error('❌ Error fetching requests:', requestsError);
-            } else {
-              console.log('✅ Sample requests fetched:', requestsData?.length || 0);
-              console.log('Sample data:', requestsData);
-            }
-          } catch (fetchError) {
-            console.error('❌ Error in request fetch:', fetchError);
-          }
+          console.log('✅ Connected to Supabase -', count || 0, 'requests found');
         }
-      } catch (connectionError) {
-        console.error('❌ Connection test failed:', connectionError);
+      } catch (connectionError: any) {
+        console.error('❌ Connection failed:', connectionError.message || 'Network error');
       }
     };
     
@@ -148,69 +116,33 @@ function App() {
     setTimeout(testSupabaseConnection, 1000);
   }, []);
 
-  // Environment Check
-  console.log('🔧 Environment Check:', {
-    hasSupabaseUrl: !!import.meta.env.VITE_SUPABASE_URL,
-    urlLength: import.meta.env.VITE_SUPABASE_URL?.length || 0,
-    urlPreview: import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + '...',
-    hasAnonKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY,
-    keyLength: import.meta.env.VITE_SUPABASE_ANON_KEY?.length || 0
+  // Environment Check (minimal)
+  console.log('🔧 Environment:', {
+    url: import.meta.env.VITE_SUPABASE_URL?.substring(0, 30) + '...',
+    hasKey: !!import.meta.env.VITE_SUPABASE_ANON_KEY
   });
 
-  // DEBUG REQUESTS FLOW
+  // DEBUG REQUESTS FLOW (minimal)
   useEffect(() => {
     const debugRequests = async () => {
-      console.log('🔍 DEBUG: Checking requests in database...');
-      
       try {
-        // Check raw requests table
         const { data: rawRequests, error: rawError } = await supabase
           .from('requests')
-          .select('*')
-          .order('created_at', { ascending: false });
-        
+          .select('id, title, is_played, status')
+          .limit(3);
+          
         if (rawError) {
-          console.error('❌ Error fetching raw requests:', rawError);
+          console.error('❌ Debug query failed:', rawError.message);
         } else {
-          console.log('✅ Raw requests in database:', rawRequests?.length || 0);
-          console.table(rawRequests);
+          console.log('📊 Sample requests:', rawRequests?.length || 0, 'found');
         }
-        
-        // Check requests with requesters
-        const { data: requestsWithRequesters, error: requestersError } = await supabase
-          .from('requests')
-          .select(`
-            *,
-            requesters (
-              id,
-              name,
-              photo,
-              message,
-              created_at
-            )
-          `)
-          .order('created_at', { ascending: false });
-        
-        if (requestersError) {
-          console.error('❌ Error fetching requests with requesters:', requestersError);
-        } else {
-          console.log('✅ Requests with requesters:', requestsWithRequesters?.length || 0);
-          console.table(requestsWithRequesters);
-        }
-        
-        // Check current state
-        console.log('📊 Current App State:');
-        console.log('- requests state length:', requests.length);
-        console.log('- requests state data:', requests);
-        
-      } catch (error) {
-        console.error('❌ Debug error:', error);
+      } catch (e) {
+        console.error('❌ Debug error:', e instanceof Error ? e.message : 'Unknown error');
       }
     };
     
-    // Run debug after 3 seconds to let other fetches complete
-    setTimeout(debugRequests, 3000);
-  }, [requests]);
+    debugRequests();
+  }, []);
 
   // Global error handler for unhandled promise rejections
   useEffect(() => {
@@ -255,8 +187,8 @@ function App() {
       console.log('🌐 Network connection restored');
       setIsOnline(true);
       
-      // Attempt to reconnect and refresh data
-      reconnectRequests();
+      // Attempt to refresh data
+      refreshRequests();
       refreshSetLists();
       
       toast.success('Network connection restored');
@@ -276,7 +208,7 @@ function App() {
       if (isVisible) {
         console.log('📱 App is now active. Refreshing data...');
         // Refresh data when app becomes visible again
-        reconnectRequests();
+        refreshRequests();
         refreshSetLists();
       } else {
         console.log('📱 App is now inactive');
@@ -292,7 +224,7 @@ function App() {
       window.removeEventListener('offline', handleOffline);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [reconnectRequests, refreshSetLists]);
+  }, [refreshRequests, refreshSetLists]);
 
   // Track component mounted state
   useEffect(() => {
@@ -519,7 +451,7 @@ function App() {
            error.message.includes('Failed to fetch') || 
            error.message.includes('NetworkError'))) {
         
-        reconnectRequests();
+        refreshRequests();
         
         // Try to retry the request automatically
         if (requestRetriesRef.current < MAX_REQUEST_RETRIES) {
@@ -555,7 +487,7 @@ function App() {
     } finally {
       requestInProgressRef.current = false;
     }
-  }, [reconnectRequests]);
+  }, [refreshRequests]);
 
   // Handle request vote with error handling
   const handleVoteRequest = useCallback(async (id: string): Promise<boolean> => {
@@ -644,18 +576,31 @@ function App() {
     }
     
     try {
-      const requestToUpdate = requests.find(r => r.id === id);
-      if (!requestToUpdate) return;
-      
-      // Toggle the locked status
-      const newLockedState = !requestToUpdate.isLocked;
-      
-      // FOR TESTING - Just update our test data
-      setRequests(prev => prev.map(request => ({
-        ...request,
-        isLocked: request.id === id ? newLockedState : false
-      })));
-      
+      const current = requests.find(r => r.id === id);
+      if (!current) return;
+      const newLockedState = !current.isLocked;
+
+      if (newLockedState) {
+        // Unlock all, then lock chosen
+        const { error: unlockAllErr } = await supabase
+          .from('requests')
+          .update({ is_locked: false })
+          .eq('is_locked', true);
+        if (unlockAllErr) throw unlockAllErr;
+
+        const { error: lockErr } = await supabase
+          .from('requests')
+          .update({ is_locked: true })
+          .eq('id', id);
+        if (lockErr) throw lockErr;
+      } else {
+        const { error } = await supabase
+          .from('requests')
+          .update({ is_locked: false })
+          .eq('id', id);
+        if (error) throw error;
+      }
+
       toast.success(newLockedState ? 'Request locked as next song' : 'Request unlocked');
     } catch (error) {
       console.error('Error toggling request lock:', error);
@@ -671,13 +616,13 @@ function App() {
     }
     
     try {
-      // FOR TESTING - Just update our test data
-      setRequests(prev => prev.map(request => 
-        request.id === id 
-          ? { ...request, isPlayed: true, isLocked: false }
-          : request
-      ));
-      
+      const { error } = await supabase
+        .from('requests')
+        .update({ is_played: true, is_locked: false, status: 'played' })
+        .eq('id', id);
+
+      if (error) throw error;
+
       toast.success('Request marked as played');
     } catch (error) {
       console.error('Error marking request as played:', error);
@@ -885,27 +830,39 @@ function App() {
     
     try {
       console.log(`Activating/deactivating set list ${id}`);
-      // Get the current set list
       const setList = setLists.find(sl => sl.id === id);
       if (!setList) return;
-      
-      // Toggle active state
+
       const newActiveState = !setList.isActive;
       console.log(`Setting set list ${id} active state to: ${newActiveState}`);
-      
-      // Update in database (using snake_case for database field names)
-      const { error } = await supabase
-        .from('set_lists')
-        .update({ is_active: newActiveState })
-        .eq('id', id);
-        
-      if (error) throw error;
-      
-      toast.success(newActiveState 
-        ? 'Set list activated successfully' 
-        : 'Set list deactivated successfully');
-        
-      // Force refresh set lists to ensure we get latest data with proper isActive state
+
+      if (newActiveState) {
+        // Use RPC to atomically activate this set list and deactivate others
+        const { error: rpcError } = await supabase.rpc('activate_set_list', { target_id: id });
+        if (rpcError) throw rpcError;
+
+        toast.success('Set list activated');
+
+        // Optimistic local update so the button switches immediately
+        setSetLists(prev => prev.map(sl => ({
+          ...sl,
+          isActive: sl.id === id ? true : false
+        })));
+      } else {
+        // Deactivate this set list
+        const { error: deactivateError } = await supabase
+          .from('set_lists')
+          .update({ is_active: false })
+          .eq('id', id);
+        if (deactivateError) throw deactivateError;
+
+        toast.success('Set list deactivated');
+
+        // Optimistic local update
+        setSetLists(prev => prev.map(sl => sl.id === id ? { ...sl, isActive: false } : sl));
+      }
+
+      // Refresh to reflect changes
       refreshSetLists();
     } catch (error) {
       console.error('Error toggling set list active state:', error);
@@ -917,7 +874,8 @@ function App() {
       ) {
         toast.error('Network error. Please check your connection and try again.');
       } else {
-        toast.error('Failed to update set list. Please try again.');
+        const msg = (error as any)?.message || (typeof error === 'string' ? error : 'Unknown error');
+        toast.error(`Failed to update set list: ${msg}`);
       }
     }
   }, [setLists, refreshSetLists, isOnline]);
@@ -1043,31 +1001,29 @@ function App() {
             <div className="space-y-8">
               {activeBackendTab === 'requests' && (
                 <ErrorBoundary>
-                  <div className="glass-effect rounded-lg p-6">
-                    <h2 className="text-xl font-semibold neon-text mb-4">Current Request Queue</h2>
-                    <QueueView 
-                      requests={requests}
-                      onLockRequest={handleLockRequest}
-                      onMarkPlayed={handleMarkPlayed}
-                      onResetQueue={handleResetQueue}
-                    />
-                  </div>
-
                   <ErrorBoundary>
                     <TickerManager 
-                      nextSong={lockedRequest
-                        ? {
-                            title: lockedRequest.title,
-                            artist: lockedRequest.artist
-                          }
-                        : undefined
-                      }
+                      nextSong={dbNextSong}
                       isActive={isTickerActive}
                       customMessage={tickerMessage}
                       onUpdateMessage={setTickerMessage}
                       onToggleActive={() => setIsTickerActive(!isTickerActive)}
                     />
                   </ErrorBoundary>
+
+                  <div className="glass-effect rounded-lg p-6">
+                    <div className="mb-4">
+                      <LatestRequest />
+                    </div>
+                    <QueueView 
+                      requests={requests}
+                      onLockRequest={handleLockRequest}
+                      onMarkPlayed={handleMarkPlayed}
+                      onResetQueue={handleResetQueue}
+                      queueFilter={queueFilter}
+                      onQueueFilterChange={setQueueFilter}
+                    />
+                  </div>
                 </ErrorBoundary>
               )}
 

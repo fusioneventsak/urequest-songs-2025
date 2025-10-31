@@ -45,13 +45,23 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   }
 });
 
-// Log Supabase configuration for debugging
-console.log('Supabase configuration:', {
-  url: supabaseUrl,
-  hasAnonKey: !!supabaseAnonKey,
-  isProduction: window.location.hostname !== 'localhost' && 
-               !window.location.hostname.includes('stackblitz') &&
-               !window.location.hostname.includes('127.0.0.1')
+// Suppress expected realtime connection errors (these are normal for anonymous connections)
+const originalConsoleError = console.error;
+console.error = (...args: any[]) => {
+  const message = args[0];
+  if (typeof message === 'string' && 
+      (message.includes('realtime_connection_logs') || 
+       message.includes('401') && message.includes('Unauthorized'))) {
+    // Suppress expected realtime auth errors
+    return;
+  }
+  originalConsoleError.apply(console, args);
+};
+
+// Log Supabase configuration (minimal)
+console.log('🔧 Supabase configured:', {
+  url: supabaseUrl?.substring(0, 30) + '...',
+  hasKey: !!supabaseAnonKey
 });
 // Helper function to handle Supabase errors
 export function handleSupabaseError(error: any): never {

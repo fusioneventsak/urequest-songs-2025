@@ -1,0 +1,17 @@
+{
+  "name": "uRequest Live",
+  "short_name": "uRequest",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#13091f",
+  "theme_color": "#ff00ff",
+  "description": "Live song request hub for bands and audiences.",
+  "icons": [
+    {
+      "src": "/Logo/Favicon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
