@@ -335,6 +335,15 @@ export function LyricsModal({ isOpen, onClose, trackName, artistName }: LyricsMo
             </div>
           )}
         </div>
+
+        {/* Mobile Close Button - Large floating button for easy tapping */}
+        <button
+          onClick={onClose}
+          className="fixed bottom-6 right-6 md:hidden p-4 bg-neon-pink hover:bg-pink-600 rounded-full transition-all text-white shadow-glow z-50"
+          aria-label="Close Lyrics"
+        >
+          <X className="w-8 h-8" />
+        </button>
       </div>
     </div>
   );
