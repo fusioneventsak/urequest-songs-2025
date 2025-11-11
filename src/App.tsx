@@ -42,8 +42,10 @@ function App() {
   // Authentication state
   const [isAdmin, setIsAdmin] = useState(false);
   const [isInitializing, setIsInitializing] = useState(!isFirstTimeUser); // Skip initialization for first-time users
-  const [isBackend, setIsBackend] = useState(false);
-  const [isKiosk, setIsKiosk] = useState(false);
+  // Check initial path immediately to set backend state correctly
+  const initialPath = window.location.pathname;
+  const [isBackend, setIsBackend] = useState(initialPath.includes(BACKEND_PATH));
+  const [isKiosk, setIsKiosk] = useState(initialPath.includes(KIOSK_PATH));
 
   // Minimum preloader display time
   const [minLoadTimePassed, setMinLoadTimePassed] = useState(false);
