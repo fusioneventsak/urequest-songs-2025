@@ -2,7 +2,7 @@
   "name": "uRequest Live - Band Request Hub",
   "short_name": "uRequest Live",
   "description": "Interactive song request platform for live bands and their audience",
-  "start_url": "/backend",
+  "start_url": "/",
   "display": "standalone",
   "background_color": "#13091f",
   "theme_color": "#ff00ff",
