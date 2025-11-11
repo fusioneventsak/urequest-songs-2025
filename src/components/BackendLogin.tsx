@@ -49,6 +49,14 @@ export function BackendLogin({ onLogin }: BackendLoginProps) {
     }
   };
 
+  const handleClearAuth = () => {
+    localStorage.removeItem('backendAuth');
+    localStorage.removeItem('backendUser');
+    setError('');
+    setEmail('');
+    setPassword('');
+  };
+
   return (
     <div className="min-h-screen bg-darker-purple flex items-center justify-center p-4">
       <div className="glass-effect rounded-lg shadow-xl p-8 max-w-md w-full border border-neon-purple/20">
@@ -114,6 +122,14 @@ export function BackendLogin({ onLogin }: BackendLoginProps) {
                 Log In
               </>
             )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleClearAuth}
+            className="w-full mt-4 px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+          >
+            Clear login data
           </button>
         </form>
       </div>
