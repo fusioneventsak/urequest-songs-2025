@@ -50,53 +50,80 @@ export function SetListManager({
   }, [songs]);
 
   const songsByGenre = useMemo(() => {
-    if (selectedGenres.length === 0) return [];
-    
-    return songs.filter(song => {
+    if (selectedGenres.length === 0) {
+      console.log('📂 No genres selected, returning empty array');
+      return [];
+    }
+
+    const filtered = songs.filter(song => {
       if (!song.genre) return false;
-      
+
       const songGenres = song.genre.split(',').map(g => g.trim());
       return selectedGenres.some(genre => songGenres.includes(genre));
     });
+
+    console.log('📂 Songs by genre:', filtered.length, 'songs for genres:', selectedGenres);
+    return filtered;
   }, [songs, selectedGenres]);
 
+  // Auto-select songs when genres are selected in genre mode
+  useEffect(() => {
+    if (isCreatingByGenre && selectedGenres.length > 0) {
+      console.log('🎯 Auto-selecting', songsByGenre.length, 'songs from selected genres');
+      setSelectedSongs(songsByGenre);
+    } else if (isCreatingByGenre && selectedGenres.length === 0) {
+      // Clear selection when no genres are selected
+      console.log('🎯 Clearing song selection - no genres selected');
+      setSelectedSongs([]);
+    }
+  }, [isCreatingByGenre, selectedGenres, songsByGenre]);
+
   const toggleGenreSelection = useCallback((genre: string) => {
-    setSelectedGenres(prev => 
-      prev.includes(genre)
+    console.log('🎨 Genre selected:', genre);
+    setSelectedGenres(prev => {
+      const newGenres = prev.includes(genre)
         ? prev.filter(g => g !== genre)
-        : [...prev, genre]
-    );
+        : [...prev, genre];
+      console.log('🎨 Updated genres:', newGenres);
+      return newGenres;
+    });
   }, []);
 
   const filteredSongs = useMemo(() => {
     let songsToFilter = isCreatingByGenre ? songsByGenre : songs;
-    
+    console.log('🎵 Filtering songs. Genre mode:', isCreatingByGenre, 'Available songs:', songsToFilter.length);
+
     if (!searchTerm.trim()) return songsToFilter;
-    
+
     const searchLower = searchTerm.toLowerCase();
-    return songsToFilter.filter(song => {
+    const filtered = songsToFilter.filter(song => {
       return (
         song.title.toLowerCase().includes(searchLower) ||
         song.artist.toLowerCase().includes(searchLower) ||
         (song.genre?.toLowerCase() || '').includes(searchLower)
       );
     });
+    console.log('🔍 After search filter:', filtered.length, 'songs');
+    return filtered;
   }, [songs, songsByGenre, searchTerm, isCreatingByGenre]);
 
   const toggleSongSelection = useCallback((song: Song) => {
-    console.log('Toggling song selection:', song.title, 'Has album art:', !!song.albumArtUrl);
+    console.log('🎵 Toggling song selection:', song.title, 'In genre mode:', isCreatingByGenre);
     setSelectedSongs(prev => {
       const isSelected = prev.find(s => s.id === song.id);
       if (isSelected) {
-        return prev.filter(s => s.id !== song.id);
+        const newSelection = prev.filter(s => s.id !== song.id);
+        console.log('➖ Removed song. Now have', newSelection.length, 'songs selected');
+        return newSelection;
       } else {
         // Make sure we preserve the full song object including albumArtUrl
         const fullSong = { ...song };
-        console.log('Adding song to selection:', fullSong.title, 'Album art:', fullSong.albumArtUrl);
-        return [...prev, fullSong];
+        const newSelection = [...prev, fullSong];
+        console.log('➕ Added song. Now have', newSelection.length, 'songs selected');
+        return newSelection;
       }
     });
-  }, []);
+  }, [isCreatingByGenre]);
 
   const toggleSetListExpansion = useCallback((setListId: string) => {
     setExpandedSetLists(prev => {
@@ -141,7 +168,15 @@ export function SetListManager({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedSongs.length === 0) return;
+    console.log('📋 Form submit triggered');
+    console.log('📋 Selected songs count:', selectedSongs.length);
+    console.log('📋 Genre mode active:', isCreatingByGenre);
+    console.log('📋 Selected genres:', selectedGenres);
+
+    if (selectedSongs.length === 0) {
+      console.log('⚠️ Cannot submit - no songs selected');
+      return;
+    }
 
     setIsSaving(true);
     try {
@@ -153,15 +188,18 @@ export function SetListManager({
         isActive: false,
       };
 
+      console.log('💾 Submitting set list data:', setListData);
+
       if (editingSetList) {
         await onUpdateSetList({ ...setListData, id: editingSetList.id });
       } else {
         await onCreateSetList(setListData);
       }
 
+      console.log('✅ Set list saved successfully');
       resetForm();
     } catch (error) {
-      console.error('Error saving set list:', error);
+      console.error('❌ Error saving set list:', error);
     } finally {
       setIsSaving(false);
     }
@@ -328,7 +366,10 @@ export function SetListManager({
                 {filteredSongs.map(song => (
                   <div
                     key={song.id}
-                    onClick={() => toggleSongSelection(song)}
+                    onClick={() => {
+                      console.log('🖱️ CLICK EVENT on song:', song.title);
+                      toggleSongSelection(song);
+                    }}
                     className={`flex items-center justify-between p-2 rounded cursor-pointer ${
                       selectedSongs.find(s => s.id === song.id)
                         ? 'bg-neon-purple/20 border-neon-pink border'

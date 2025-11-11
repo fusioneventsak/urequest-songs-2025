@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Music4, ThumbsUp, UserCircle, Users, Crown, Zap } from 'lucide-react';
+import { Music4, ThumbsUp, UserCircle, Users, Crown, Zap, Music } from 'lucide-react';
 import { useUiSettings } from '../hooks/useUiSettings';
+import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
 import type { SongRequest } from '../types';
 import toast from 'react-hot-toast';
 
@@ -9,7 +10,6 @@ interface UpvoteListProps {
   onVote: (id: string) => Promise<boolean>;
   currentUserId?: string;
   votingStates?: Set<string>;
-  votingStates?: Set<string>;
 }
 
 export function UpvoteList({ requests, onVote, currentUserId, votingStates = new Set<string>() }: UpvoteListProps) {
@@ -17,35 +17,76 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
   const songBorderColor = settings?.song_border_color || settings?.frontend_accent_color || '#ff00ff';
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
 
-  // Simple filtering - show requests that aren't marked as played
+  // Deduplicate and merge requests for the same song
   const activeRequests = useMemo(() => {
     if (!requests || !Array.isArray(requests)) {
       console.log('No requests array provided to UpvoteList');
-      return []; 
+      return [];
     }
 
     // Filter out played requests
     const filtered = requests.filter(request => request && !request.isPlayed);
 
-    // Sort by priority: locked first, then by total engagement (votes + requesters)
-    return filtered.sort((a, b) => {
+    // Group requests by song (title + artist)
+    const songGroups = new Map<string, SongRequest>();
+
+    filtered.forEach(request => {
+      const songKey = `${request.title.toLowerCase().trim()}|${(request.artist || '').toLowerCase().trim()}`;
+
+      const existing = songGroups.get(songKey);
+
+      if (existing) {
+        // Merge this request into the existing one
+        const allRequesters = Array.isArray(existing.requesters) ? existing.requesters : [];
+        const newRequesters = Array.isArray(request.requesters) ? request.requesters : [];
+
+        // Combine requesters, avoiding duplicates by user ID
+        const requesterMap = new Map();
+        [...allRequesters, ...newRequesters].forEach(req => {
+          if (!requesterMap.has(req.id)) {
+            requesterMap.set(req.id, req);
+          }
+        });
+
+        existing.requesters = Array.from(requesterMap.values());
+        existing.votes = (existing.votes || 0) + (request.votes || 0);
+
+        // Keep the locked state if any version is locked
+        if (request.isLocked) {
+          existing.isLocked = true;
+        }
+
+        // Use the earliest creation time
+        const existingTime = new Date(existing.createdAt).getTime();
+        const requestTime = new Date(request.createdAt).getTime();
+        if (requestTime < existingTime) {
+          existing.createdAt = request.createdAt;
+        }
+      } else {
+        // First time seeing this song, add it
+        songGroups.set(songKey, { ...request });
+      }
+    });
+
+    // Convert map to array and sort by priority
+    return Array.from(songGroups.values()).sort((a, b) => {
       // Locked requests go first
       if (a.isLocked && !b.isLocked) return -1;
       if (!a.isLocked && b.isLocked) return 1;
-      
-      // Then by total engagement (votes + requester count) - ensure requesters is an array
+
+      // Then by total engagement (votes + requester count)
       const requestersA = Array.isArray(a.requesters) ? a.requesters : [];
       const requestersB = Array.isArray(b.requesters) ? b.requesters : [];
-      
+
       const engagementA = (a.votes || 0) + requestersA.length;
       const engagementB = (b.votes || 0) + requestersB.length;
-      
+
       if (engagementA !== engagementB) {
         return engagementB - engagementA;
       }
-      
-      // If engagement is equal, sort by creation time (newest first)
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+
+      // If engagement is equal, sort by creation time (oldest first for deduplicated songs)
+      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
     });
   }, [requests]);
 
@@ -81,13 +122,13 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
   }
 
   return (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
+    <div className="space-y-4">
+      <div className="text-center mb-6">
         <h2 className="text-2xl font-bold neon-text mb-2">Vote for Your Favorites</h2>
         <p className="text-gray-400">Help decide what gets played next!</p>
       </div>
 
-      <div className="grid gap-6">
+      <div className="space-y-3">
         {activeRequests.map((request, index) => {
           const isVoting = votingStates.has(request.id);
           const requesters = Array.isArray(request.requesters) ? request.requesters : [];
@@ -95,7 +136,7 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
           const additionalCount = Math.max(0, requesters.length - 1);
           const votes = request.votes || 0;
           const totalEngagement = votes + requesters.length;
-          
+
           // Determine if this is a highly requested song
           const isHotTrack = totalEngagement >= 5;
           const isTopRequest = index === 0 && !request.isLocked;
@@ -103,155 +144,159 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
           return (
             <div
               key={request.id}
-              className={`relative overflow-hidden rounded-xl p-6 transition-all duration-300 transform hover:scale-[1.02] ${
-                request.isLocked 
-                ? 'bg-gradient-to-r from-yellow-900/40 to-orange-900/40 ring-2 ring-yellow-400 shadow-lg shadow-yellow-400/30' 
+              className={`relative overflow-hidden rounded-xl transition-all duration-300 ${
+                request.isLocked
+                ? 'ring-2 ring-yellow-400 shadow-lg shadow-yellow-400/20'
                 : isHotTrack
-                ? 'bg-gradient-to-r from-red-900/30 to-pink-900/30 ring-2 ring-red-400/50 shadow-lg shadow-red-400/20'
+                ? 'ring-2 ring-red-400/50 shadow-lg shadow-red-400/10'
                 : isTopRequest
-                ? 'bg-gradient-to-r from-green-900/30 to-emerald-900/30 ring-2 ring-green-400/50 shadow-lg shadow-green-400/20'
-                : 'bg-gray-900/80 hover:bg-gray-800/80 border border-gray-700/50'
-              } backdrop-blur-sm`}
+                ? 'ring-2 ring-green-400/50 shadow-lg shadow-green-400/10'
+                : 'border'
+              }`}
               style={{
                 borderColor: request.isLocked ? '#FBBF24' : isHotTrack ? '#EF4444' : isTopRequest ? '#10B981' : songBorderColor,
+                backgroundColor: 'rgba(17, 24, 39, 0.8)',
+                backdropFilter: 'blur(10px)'
               }}
             >
-              {/* Status Badge */}
-              <div className="absolute top-4 right-4">
-                {request.isLocked ? (
-                  <div className="flex items-center space-x-1 px-3 py-1 bg-yellow-600 text-yellow-100 rounded-full text-sm font-bold">
-                    <Crown className="w-4 h-4" />
-                    <span>Next Up</span>
-                  </div>
-                ) : isHotTrack ? (
-                  <div className="flex items-center space-x-1 px-3 py-1 bg-red-600 text-red-100 rounded-full text-sm font-bold">
-                    <Zap className="w-4 h-4" />
-                    <span>Hot Track</span>
-                  </div>
-                ) : isTopRequest ? (
-                  <div className="flex items-center space-x-1 px-3 py-1 bg-green-600 text-green-100 rounded-full text-sm font-bold">
-                    <Crown className="w-4 h-4" />
-                    <span>Top Request</span>
-                  </div>
-                ) : (
-                  <div className="px-3 py-1 bg-gray-600 text-gray-200 rounded-full text-sm font-medium">
-                    #{index + 1}
-                  </div>
-                )}
-              </div>
+              {/* Gradient overlay for locked/hot tracks */}
+              {(request.isLocked || isHotTrack || isTopRequest) && (
+                <div
+                  className="absolute inset-0 pointer-events-none opacity-10"
+                  style={{
+                    background: request.isLocked
+                      ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.3), transparent)'
+                      : isHotTrack
+                      ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.3), transparent)'
+                      : 'linear-gradient(135deg, rgba(16, 185, 129, 0.3), transparent)'
+                  }}
+                />
+              )}
 
-              <div className="flex items-start justify-between pr-24">
-                {/* Song Info */}
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white mb-1">{request.title}</h3>
+              <div className="relative p-4 flex items-center gap-3">
+                {/* Album Art */}
+                <AlbumArtDisplay
+                  albumArtUrl={request.albumArtUrl}
+                  title={request.title}
+                  size="sm"
+                  imageStyle={{
+                    boxShadow: `0 0 10px ${songBorderColor}30`,
+                    border: `2px solid ${songBorderColor}40`
+                  }}
+                />
+
+                {/* Song Info and Stats */}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-white text-lg truncate">{request.title}</h3>
                   {request.artist && (
-                    <p className="text-gray-300 mb-3">{request.artist}</p>
+                    <p className="text-gray-300 text-sm truncate mb-2">{request.artist}</p>
                   )}
-                  
-                  {/* Requester Info */}
-                  {mainRequester && (
-                    <div className="flex items-center space-x-3 mb-3">
-                      {mainRequester.photo ? (
-                        <img
-                          src={mainRequester.photo}
-                          alt={mainRequester.name}
-                          className="w-8 h-8 rounded-full object-cover border-2 border-purple-400/50"
-                        />
-                      ) : (
-                        <UserCircle className="w-8 h-8 text-purple-400" />
-                      )}
-                      <div className="text-sm">
-                        <span className="font-medium text-white">
-                          Requested by {mainRequester.name}
-                        </span>
+
+                  {/* Compact Stats Row */}
+                  <div className="flex items-center gap-4 text-xs">
+                    {/* Status Badge */}
+                    {request.isLocked ? (
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-yellow-600/20 text-yellow-300 rounded-full font-bold">
+                        <Crown className="w-3 h-3" />
+                        <span>Next Up</span>
+                      </div>
+                    ) : isHotTrack ? (
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-red-600/20 text-red-300 rounded-full font-bold">
+                        <Zap className="w-3 h-3" />
+                        <span>Hot</span>
+                      </div>
+                    ) : isTopRequest ? (
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-green-600/20 text-green-300 rounded-full font-bold">
+                        <Crown className="w-3 h-3" />
+                        <span>Top</span>
+                      </div>
+                    ) : (
+                      <div className="px-2 py-0.5 bg-gray-700/50 text-gray-300 rounded-full font-medium">
+                        #{index + 1}
+                      </div>
+                    )}
+
+                    {/* Requesters */}
+                    <div className="flex items-center gap-1 text-gray-400">
+                      <Users className="w-3 h-3" />
+                      <span>{requesters.length}</span>
+                    </div>
+
+                    {/* Votes */}
+                    <div className="flex items-center gap-1 text-gray-400">
+                      <ThumbsUp className="w-3 h-3" />
+                      <span>{votes}</span>
+                    </div>
+
+                    {/* Main Requester */}
+                    {mainRequester && (
+                      <div className="flex items-center gap-1.5 text-gray-400">
+                        {mainRequester.photo ? (
+                          <img
+                            src={mainRequester.photo}
+                            alt={mainRequester.name}
+                            className="w-4 h-4 rounded-full object-cover"
+                          />
+                        ) : (
+                          <UserCircle className="w-4 h-4" />
+                        )}
+                        <span className="truncate max-w-[100px]">{mainRequester.name}</span>
                         {additionalCount > 0 && (
-                          <span className="text-gray-400 ml-2">
-                            + {additionalCount} other{additionalCount !== 1 ? 's' : ''}
-                          </span>
+                          <span>+{additionalCount}</span>
                         )}
                       </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Vote Button - Compact Design */}
+                <div className="flex-shrink-0">
+                  {request.id.startsWith('temp_') ? (
+                    <div className="px-4 py-2 rounded-lg bg-gray-700/50 text-gray-400 flex items-center gap-2 text-sm">
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+                      <span>Processing</span>
                     </div>
+                  ) : (
+                    <button
+                      onClick={(e) => handleVote(request.id, e)}
+                      disabled={isVoting || request.isLocked}
+                      className={`px-4 py-2 rounded-lg font-extrabold tracking-wide uppercase text-sm transition-all transform hover:scale-105 active:scale-95 disabled:transform-none flex items-center gap-2 whitespace-nowrap ${
+                        request.isLocked || isVoting
+                        ? 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
+                        : 'text-white shadow-lg'
+                      }`}
+                      style={
+                        !request.isLocked && !isVoting
+                          ? {
+                              backgroundColor: accentColor,
+                              textShadow: '0 1px 3px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.3)',
+                              boxShadow: `0 4px 15px ${accentColor}40, inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(0,0,0,0.2)`,
+                              border: `1px solid rgba(255,255,255,0.1)`,
+                              background: `linear-gradient(135deg, ${accentColor}, ${accentColor}dd)`
+                            }
+                          : {}
+                      }
+                    >
+                      {isVoting ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                          <span>Voting</span>
+                        </>
+                      ) : request.isLocked ? (
+                        <>
+                          <Crown className="w-4 h-4" />
+                          <span>Locked</span>
+                        </>
+                      ) : (
+                        <>
+                          <ThumbsUp className="w-4 h-4" />
+                          <span>Vote</span>
+                        </>
+                      )}
+                    </button>
                   )}
-
-                  {/* Stats */}
-                  <div className="flex items-center space-x-6 text-sm">
-                    <div className="flex items-center space-x-2 text-gray-400">
-                      <Users className="w-4 h-4" />
-                      <span>{requesters.length} requester{requesters.length !== 1 ? 's' : ''}</span>
-                    </div>
-                    <div className="flex items-center space-x-2 text-gray-400">
-                      <ThumbsUp className="w-4 h-4" />
-                      <span>{votes} vote{votes !== 1 ? 's' : ''}</span>
-                    </div>
-                    {totalEngagement > 0 && (
-                      <div className="flex items-center space-x-2 text-purple-400 font-medium">
-                        <Zap className="w-4 h-4" />
-                        <span>{totalEngagement} total engagement</span>
-                      </div>
-                    )}
-                  </div>
                 </div>
               </div>
-
-              {/* Vote Button - FIXED to handle processing state better */}
-              <div className="mt-4 flex justify-end">
-                {request.id.startsWith('temp_') ? (
-                  <div className="px-6 py-3 rounded-lg bg-gray-600/50 text-gray-400 flex items-center space-x-2">
-                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-400"></div>
-                    <span>Processing...</span>
-                  </div>
-                ) : (
-                  <button
-                    onClick={(e) => handleVote(request.id, e)}
-                    disabled={isVoting || request.isLocked}
-                    className={`px-6 py-3 rounded-lg font-medium transition-all transform hover:scale-105 disabled:transform-none flex items-center space-x-2 min-w-[120px] justify-center ${
-                      request.isLocked
-                      ? 'bg-gray-600/50 text-gray-400 cursor-not-allowed'
-                      : isVoting
-                      ? 'bg-purple-600/50 text-purple-200 cursor-wait'
-                      : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700 shadow-lg hover:shadow-xl'
-                    }`}
-                    style={{
-                      backgroundColor: !request.isLocked && !isVoting ? undefined : undefined,
-                      backgroundImage: !request.isLocked && !isVoting ? `linear-gradient(to right, ${accentColor}, ${accentColor})` : undefined
-                    }}
-                  >
-                    {isVoting ? (
-                      <>
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                        <span>Voting...</span>
-                      </>
-                    ) : request.isLocked ? (
-                      <>
-                        <Crown className="w-5 h-5" />
-                        <span>Locked</span>
-                      </>
-                    ) : (
-                      <>
-                        <ThumbsUp className="w-5 h-5" />
-                        <span>Vote</span>
-                      </>
-                    )}
-                  </button>
-                )}
-              </div>
-
-              {/* Progress Bar for Engagement */}
-              {!request.isLocked && totalEngagement > 0 && (
-                <div className="mt-4">
-                  <div className="w-full bg-gray-700/50 rounded-full h-2">
-                    <div
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
-                      style={{ 
-                        width: `${Math.min(100, (totalEngagement / 10) * 100)}%` 
-                      }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-gray-400 mt-1 text-center">
-                    {totalEngagement}/10 engagement to boost priority
-                  </p>
-                </div>
-              )}
             </div>
           );
         })}

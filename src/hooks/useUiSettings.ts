@@ -14,7 +14,8 @@ interface UiSettings {
   song_border_color?: string;
   nav_bg_color?: string;
   highlight_color?: string;
-  customMessage?: string;
+  custom_message?: string;
+  ticker_active?: boolean;
   show_qr_code?: boolean;
 }
 
@@ -34,7 +35,8 @@ const DEFAULT_SETTINGS: Omit<UiSettings, 'id'> = {
   song_border_color: '#ff00ff',
   nav_bg_color: '#0f051d',
   highlight_color: '#ff00ff',
-  customMessage: '',
+  custom_message: '',
+  ticker_active: false,
   show_qr_code: false
 };
 

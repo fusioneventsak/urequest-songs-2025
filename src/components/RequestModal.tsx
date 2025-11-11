@@ -3,6 +3,7 @@ import { X, AlertTriangle, Music, User } from 'lucide-react';
 import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
 import type { Song, User as UserType } from '../types';
 import { usePhotoStorage } from '../hooks/usePhotoStorage';
+import { useUiSettings } from '../hooks/useUiSettings';
 import toast from 'react-hot-toast';
 
 interface RequestModalProps {
@@ -21,6 +22,8 @@ export function RequestModal({
   currentUser
 }: RequestModalProps) {
   const { getDefaultAvatar } = usePhotoStorage();
+  const { settings } = useUiSettings();
+  const accentColor = settings?.frontend_accent_color || '#ff00ff';
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,6 +85,7 @@ export function RequestModal({
       const requestData = {
         title: song.title.trim(),
         artist: song.artist?.trim() || '',
+        albumArtUrl: song.albumArtUrl,
         requestedBy: currentUser.name.trim(),
         userPhoto: currentUser.photo || getDefaultAvatar(currentUser.name),
         message: cleanMessage,
@@ -161,13 +165,9 @@ export function RequestModal({
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-gray-900 rounded-2xl max-w-md w-full max-h-[90vh] overflow-y-auto border border-gray-700 shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <div className="flex items-center space-x-3">
-            <Music className="w-6 h-6 text-purple-400" />
-            <h2 className="text-xl font-bold text-white">Request Song</h2>
-          </div>
+      <div className="bg-gray-900 rounded-2xl max-w-md w-full border border-gray-700 shadow-2xl">
+        {/* Close Button */}
+        <div className="flex justify-end p-4">
           <button
             onClick={handleClose}
             disabled={isSubmitting}
@@ -177,48 +177,60 @@ export function RequestModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Song Display */}
-          <div className="bg-gray-800/50 rounded-xl p-4 space-y-4">
-            <div className="flex items-center space-x-4">
-              <div className="flex-shrink-0">
-                <AlbumArtDisplay 
-                  song={song} 
-                  size="medium" 
-                  className="rounded-lg shadow-lg" 
-                />
+        <form onSubmit={handleSubmit} className="px-6 pb-6 space-y-6">
+          {/* User Info - Small at Top */}
+          <div className="flex items-center space-x-2 text-sm">
+            {currentUser.photo ? (
+              <img
+                src={currentUser.photo}
+                alt={`${currentUser.name}'s photo`}
+                className="w-8 h-8 rounded-full object-cover border-2"
+                style={{ borderColor: accentColor }}
+              />
+            ) : (
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center border-2"
+                style={{
+                  backgroundColor: accentColor,
+                  borderColor: accentColor,
+                  opacity: 0.8
+                }}
+              >
+                <User className="w-4 h-4 text-white" />
               </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-white text-lg truncate">
-                  {song.title}
-                </h3>
-                {song.artist && (
-                  <p className="text-gray-300 truncate">by {song.artist}</p>
-                )}
-                {song.genre && (
-                  <p className="text-gray-400 text-sm truncate">{song.genre}</p>
-                )}
-              </div>
+            )}
+            <div className="flex items-center gap-1.5">
+              <span className="text-gray-400">Requesting as</span>
+              <span className="text-white font-medium">{currentUser.name}</span>
             </div>
           </div>
 
-          {/* User Info */}
-          <div className="bg-gray-800/30 rounded-xl p-4">
-            <div className="flex items-center space-x-3">
-              {currentUser.photo ? (
-                <img
-                  src={currentUser.photo}
-                  alt={`${currentUser.name}'s photo`}
-                  className="w-10 h-10 rounded-full object-cover border-2 border-purple-400"
-                />
-              ) : (
-                <div className="w-10 h-10 rounded-full bg-purple-600 flex items-center justify-center border-2 border-purple-400">
-                  <User className="w-6 h-6 text-white" />
+          {/* Main Feature: Song Display */}
+          <div className="space-y-4">
+            <h3 className="text-center text-xl font-bold text-white">
+              You Are Requesting
+            </h3>
+
+            <div className="bg-gray-800/50 rounded-xl p-6 space-y-4">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="flex-shrink-0">
+                  <AlbumArtDisplay
+                    song={song}
+                    size="medium"
+                    className="rounded-lg shadow-lg"
+                  />
                 </div>
-              )}
-              <div>
-                <p className="text-white font-medium">{currentUser.name}</p>
-                <p className="text-gray-400 text-sm">Requesting as</p>
+                <div className="text-center w-full">
+                  <h3 className="font-bold text-white text-2xl mb-2">
+                    {song.title}
+                  </h3>
+                  {song.artist && (
+                    <p className="text-gray-300 text-lg mb-1">by {song.artist}</p>
+                  )}
+                  {song.genre && (
+                    <p className="text-gray-400 text-sm">{song.genre}</p>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -235,7 +247,10 @@ export function RequestModal({
               placeholder="Add a special message with your request..."
               rows={3}
               disabled={isSubmitting}
-              className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:border-transparent resize-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              style={{
+                ['--tw-ring-color' as any]: accentColor
+              }}
             />
             <div className="flex justify-between items-center text-xs">
               <span className="text-gray-500">Make it personal!</span>
@@ -260,16 +275,26 @@ export function RequestModal({
           <button
             type="submit"
             disabled={isSubmitting || !currentUser?.name?.trim()}
-            className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 disabled:from-gray-600 disabled:to-gray-600 text-white font-semibold py-4 px-6 rounded-xl transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center space-x-2"
+            className="w-full text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center space-x-2"
+            style={{
+              background: isSubmitting || !currentUser?.name?.trim()
+                ? 'linear-gradient(to right, #4b5563, #4b5563)'
+                : `linear-gradient(to right, ${accentColor}, ${accentColor}dd)`,
+              opacity: isSubmitting || !currentUser?.name?.trim() ? 0.5 : 1,
+              textShadow: '0 2px 4px rgba(0, 0, 0, 0.8), 0 0 10px rgba(0, 0, 0, 0.5)',
+              boxShadow: isSubmitting || !currentUser?.name?.trim()
+                ? 'none'
+                : `0 0 20px ${accentColor}80`
+            }}
           >
             {isSubmitting ? (
               <>
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8))' }} />
                 <span>Submitting Request...</span>
               </>
             ) : (
               <>
-                <Music className="w-5 h-5" />
+                <Music className="w-5 h-5" style={{ filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8))' }} />
                 <span>Submit Request</span>
               </>
             )}

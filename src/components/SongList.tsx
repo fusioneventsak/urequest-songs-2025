@@ -1,21 +1,40 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { useUiSettings } from '../hooks/useUiSettings';
 import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
-import type { Song } from '../types';
-import { Music4 } from 'lucide-react';
+import type { Song, SongRequest } from '../types';
+import { Music4, Zap } from 'lucide-react';
 
 interface SongListProps {
   songs: Song[];
+  requests?: SongRequest[];
   onSongSelect: (song: Song) => void;
 }
 
-export function SongList({ songs, onSongSelect }: SongListProps) {
+export function SongList({ songs, requests = [], onSongSelect }: SongListProps) {
   const { settings } = useUiSettings();
   const songBorderColor = settings?.song_border_color || settings?.frontend_accent_color || '#ff00ff';
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
   const secondaryColor = settings?.frontend_secondary_accent || '#9d00ff';
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
+
+  // Calculate engagement for each song based on active requests
+  const songEngagement = useMemo(() => {
+    const engagement = new Map<string, number>();
+
+    requests.forEach(request => {
+      if (request.isPlayed) return; // Skip played requests
+
+      const songKey = `${request.title.toLowerCase().trim()}|${(request.artist || '').toLowerCase().trim()}`;
+      const requesters = Array.isArray(request.requesters) ? request.requesters : [];
+      const totalEngagement = (request.votes || 0) + requesters.length;
+
+      const current = engagement.get(songKey) || 0;
+      engagement.set(songKey, current + totalEngagement);
+    });
+
+    return engagement;
+  }, [requests]);
 
   useEffect(() => {
     let ticking = false;
@@ -44,26 +63,43 @@ export function SongList({ songs, onSongSelect }: SongListProps) {
       ref={containerRef}
       className="grid gap-2 w-full relative p-4"
     >
-      {songs.map((song) => (
+      {songs.map((song) => {
+        const songKey = `${song.title.toLowerCase().trim()}|${song.artist.toLowerCase().trim()}`;
+        const engagement = songEngagement.get(songKey) || 0;
+        const isHot = engagement >= 5;
+
+        return (
         <button
           key={song.id}
           onClick={() => onSongSelect(song)}
           className="w-full text-left relative group"
         >
-          <div 
-            className="glass-effect rounded-lg p-4 border transition-all duration-300 relative overflow-hidden h-[88px] flex items-center"
+          <div
+            className={`glass-effect rounded-lg p-4 border transition-all duration-300 relative overflow-hidden h-[88px] flex items-center ${
+              isHot ? 'ring-2 ring-red-400/50' : ''
+            }`}
             style={{
-              borderColor: songBorderColor,
-              boxShadow: `0 0 8px ${songBorderColor}50`,
-              background: `linear-gradient(135deg, 
-                rgba(255, 255, 255, 0.1), 
-                rgba(255, 255, 255, 0.05), 
+              borderColor: isHot ? '#EF4444' : songBorderColor,
+              boxShadow: isHot ? `0 0 12px rgba(239, 68, 68, 0.3)` : `0 0 8px ${songBorderColor}50`,
+              background: `linear-gradient(135deg,
+                rgba(255, 255, 255, 0.1),
+                rgba(255, 255, 255, 0.05),
                 rgba(255, 255, 255, 0.02)
               )`,
             }}
           >
+            {/* Hot gradient overlay */}
+            {isHot && (
+              <div
+                className="absolute inset-0 pointer-events-none opacity-10"
+                style={{
+                  background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.3), transparent)'
+                }}
+              />
+            )}
+
             {/* Full card glassy reflection effect */}
-            <div 
+            <div
               className="absolute inset-0 pointer-events-none"
               style={{
                 background: `
@@ -108,7 +144,15 @@ export function SongList({ songs, onSongSelect }: SongListProps) {
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h3 className="font-medium text-white truncate">{song.title}</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-medium text-white truncate">{song.title}</h3>
+                  {isHot && (
+                    <span className="flex items-center gap-1 px-2 py-0.5 bg-red-600/20 text-red-300 rounded-full font-bold text-xs flex-shrink-0">
+                      <Zap className="w-3 h-3" />
+                      <span>Hot</span>
+                    </span>
+                  )}
+                </div>
                 <p className="text-gray-300 text-sm truncate">{song.artist}</p>
                 {song.genre && (
                   <div className="flex flex-wrap gap-1 mt-1">
@@ -131,11 +175,7 @@ export function SongList({ songs, onSongSelect }: SongListProps) {
                 )}
               </div>
               <div className="flex-shrink-0 ml-2">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onSongSelect(song);
-                  }}
+                <div
                   className="px-3 py-1.5 rounded-lg text-white transition-all duration-200 whitespace-nowrap text-sm font-extrabold tracking-wide uppercase transform hover:scale-105 active:scale-95"
                   style={{
                     backgroundColor: accentColor,
@@ -146,12 +186,13 @@ export function SongList({ songs, onSongSelect }: SongListProps) {
                   }}
                 >
                   REQUEST
-                </button>
+                </div>
               </div>
             </div>
           </div>
         </button>
-      ))}
+        );
+      })}
 
       {songs.length === 0 && (
         <div className="text-center p-8 text-gray-400">

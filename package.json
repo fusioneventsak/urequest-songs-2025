@@ -5,25 +5,27 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build", 
+    "build": "tsc && vite build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "migrate": "node migrate-database.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.38.0",
     "compressorjs": "^1.2.1",
     "date-fns": "^3.3.1",
+    "dotenv": "^17.2.3",
+    "exponential-backoff": "^3.1.1",
     "lucide-react": "^0.323.0",
+    "lz-string": "^1.5.0",
+    "nanoid": "^5.0.6",
+    "p-limit": "^5.0.0",
+    "qrcode.react": "^3.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.4.1",
-    "uuid": "^9.0.1",
-    "lz-string": "^1.5.0",
-    "p-limit": "^5.0.0",
-    "nanoid": "^5.0.6",
     "retry": "^0.13.1",
-    "exponential-backoff": "^3.1.1",
-    "qrcode.react": "^3.1.0"
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "@types/react": "^18.2.43",

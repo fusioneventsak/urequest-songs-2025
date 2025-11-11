@@ -1,18 +1,18 @@
 /**
  * Resizes and compresses an image to reduce payload size
- * Updated to handle standard smartphone photos from all major brands (iPhone, Samsung, Google Pixel, etc.)
- * Supports images up to 50MB and compresses them efficiently
+ * Optimized for HD photos with balanced compression for egress savings
+ * Accepts HD photos (up to 50MB) and compresses efficiently while maintaining quality
  * @param dataUrl The data URL of the image to compress
- * @param maxWidth Maximum width of the resulting image
- * @param maxHeight Maximum height of the resulting image
- * @param quality Compression quality (0-1)
+ * @param maxWidth Maximum width of the resulting image (default: 800 for HD quality)
+ * @param maxHeight Maximum height of the resulting image (default: 800 for HD quality)
+ * @param quality Compression quality (0-1, default: 0.85 for HD)
  * @returns Promise that resolves to compressed image data URL
  */
 export function resizeAndCompressImage(
-  dataUrl: string, 
-  maxWidth = 300, 
-  maxHeight = 300,
-  quality = 0.8
+  dataUrl: string,
+  maxWidth = 800,  // Increased from 300 for HD quality
+  maxHeight = 800, // Increased from 300 for HD quality
+  quality = 0.85   // Slightly higher quality for better HD appearance
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     try {
@@ -76,7 +76,7 @@ export function resizeAndCompressImage(
           ctx.drawImage(img, 0, 0, width, height);
           
           // Start with user-specified quality and progressively compress if needed
-          const maxSize = 1024 * 1024; // 1MB max
+          const maxSize = 2 * 1024 * 1024; // 2MB max for HD photos (doubled for better quality)
           let compressedDataUrl: string;
           let currentQuality = quality;
           

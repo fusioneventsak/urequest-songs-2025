@@ -2,6 +2,7 @@ export interface SongRequest {
   id: string;
   title: string;
   artist?: string;
+  albumArtUrl?: string;
   requesters: {
     id: string;
     name: string;
@@ -13,12 +14,14 @@ export interface SongRequest {
   status: 'pending' | 'approved' | 'rejected' | 'played';
   isLocked?: boolean;
   isPlayed?: boolean;
+  isHot?: boolean;
   createdAt: string;
 }
 
 export interface RequestFormData {
   title: string;
   artist: string;
+  albumArtUrl?: string;
   requestedBy: string;
   userPhoto: string;
   message?: string;

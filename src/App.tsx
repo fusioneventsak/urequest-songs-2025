@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { supabase } from './utils/supabase'; 
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { supabase } from './utils/supabase';
 import type { Song, SongRequest, RequestFormData, SetList, User } from './types';
+
+console.log('🔥🔥🔥 APP.TSX FILE LOADED - FRESH CODE 🔥🔥🔥');
 import { LandingPage } from './components/LandingPage';
 import { UserFrontend } from './components/UserFrontend';
 import { BackendLogin } from './components/BackendLogin'; 
@@ -20,6 +21,7 @@ import { useSetListSync } from './hooks/useSetListSync';
 import { useUiSettings } from './hooks/useUiSettings';
 import { useLogoHandling } from './hooks/useLogoHandling';
 import { LoadingSpinner } from './components/shared/LoadingSpinner';
+import { LoadingPreloader } from './components/shared/LoadingPreloader';
 import { LogOut } from 'lucide-react';
 import { Logo } from './components/shared/Logo';
 import { KioskPage } from './components/KioskPage';
@@ -32,57 +34,67 @@ const MAX_PHOTO_SIZE = 250 * 1024; // 250KB limit for database storage
 const MAX_REQUEST_RETRIES = 3;
 
 function App() {
+  // Check localStorage immediately before any state initialization
+  const hasSeenWelcomeStored = localStorage.getItem('hasSeenWelcome');
+  const savedUser = localStorage.getItem('currentUser');
+  const isFirstTimeUser = hasSeenWelcomeStored !== 'true' && !savedUser;
+
   // Authentication state
   const [isAdmin, setIsAdmin] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(!isFirstTimeUser); // Skip initialization for first-time users
   const [isBackend, setIsBackend] = useState(false);
   const [isKiosk, setIsKiosk] = useState(false);
+
+  // Minimum preloader display time
+  const [minLoadTimePassed, setMinLoadTimePassed] = useState(false);
+  const loadStartTimeRef = useRef(Date.now());
   
   // Backend tab state
   const [activeBackendTab, setActiveBackendTab] = useState<'requests' | 'setlists' | 'songs' | 'settings'>('requests');
   
   // App data state
   const [songs, setSongs] = useState<Song[]>([]);
-  const [requests, setRequestsState] = useState<SongRequest[]>([]);
-  
-  // Debug wrapper for setRequests
-  const setRequests = useCallback((newRequests: any) => {
-    console.log('🔄 setRequests called with:', newRequests);
-    if (Array.isArray(newRequests)) {
-      console.log('📥 Setting requests to array of length:', newRequests.length);
-    } else if (typeof newRequests === 'function') {
-      console.log('📥 Setting requests with function');
-    }
-    setRequestsState(newRequests);
-  }, []);
-  
+  const [requests, setRequests] = useState<SongRequest[]>([]);
+
+  console.log('🔧 App.tsx: setRequests function reference:', setRequests.toString().substring(0, 50));
+  console.log('🔧 App.tsx: Current requests count:', requests.length);
+
   const [setLists, setSetLists] = useState<SetList[]>([]);
   const [activeSetList, setActiveSetList] = useState<SetList | null>(null);
-  
+
   // Voting states
   const [votingStates, setVotingStates] = useState<Set<string>>(new Set());
-  
+
   // User state
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  
+
   // Online state
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  
+
   // Request processing state
   const requestInProgressRef = useRef(false);
   const requestRetriesRef = useRef(0);
   const mountedRef = useRef(true);
-  
+
   // Optimistic updates state
   const [optimisticVotes, setOptimisticVotes] = useState<Map<string, number>>(new Map());
 
   // Use custom hooks for data syncing
-  const { reconnectRequests } = useRequestSync({
+  console.log('🔗 App.tsx: Passing setRequests to useRequestSync');
+  const { reconnectRequests, refresh: refreshRequests } = useRequestSync({
     requests,
     setRequests,
     isOnline,
     currentUser
   });
+
+  // Debug: Log requests state changes
+  useEffect(() => {
+    console.log('🎯 App.tsx requests state changed:', {
+      count: requests.length,
+      requests: requests.map(r => ({ id: r.id, title: r.title, requesters: r.requesters?.length || 0 }))
+    });
+  }, [requests]);
 
   const { reconnectSongs } = useSongSync({
     songs,
@@ -163,13 +175,23 @@ function App() {
     };
   }, []);
 
+  // Enforce minimum preloader display time (3 seconds)
+  useEffect(() => {
+    const MIN_LOAD_TIME = 3000; // 3 seconds
+    const timer = setTimeout(() => {
+      setMinLoadTimePassed(true);
+    }, MIN_LOAD_TIME);
+
+    return () => clearTimeout(timer);
+  }, []);
+
   // Check auth state
   useEffect(() => {
     const checkAuth = async () => {
       try {
         const hasAuth = localStorage.getItem('backendAuth') === 'true';
         setIsAdmin(hasAuth);
-        
+
         const savedUser = localStorage.getItem('currentUser');
         if (savedUser) {
           try {
@@ -261,7 +283,7 @@ function App() {
       toast.error('Cannot submit requests while offline. Please check your internet connection.');
       return false;
     }
-    
+
     if (requestInProgressRef.current) {
       console.log('Request already in progress, skipping...');
       return false;
@@ -270,12 +292,17 @@ function App() {
     requestInProgressRef.current = true;
 
     try {
-      if (!currentUser) {
-        throw new Error('You must set up your profile first');
+      // In kiosk mode, use data.requestedBy and data.userPhoto
+      // In user mode, use currentUser if available, otherwise use data
+      const requesterName = data.requestedBy || currentUser?.name;
+      const requesterPhoto = data.userPhoto || currentUser?.photo;
+
+      if (!requesterName) {
+        throw new Error('Please enter your name to submit a request');
       }
 
       const requestId = crypto.randomUUID();
-      
+
       const newRequest = {
         id: requestId,
         title: data.title,
@@ -287,8 +314,8 @@ function App() {
         requesters: [{
           id: crypto.randomUUID(),
           requestId: requestId,
-          name: currentUser.name,
-          photo: currentUser.photo,
+          name: requesterName,
+          photo: requesterPhoto || '',
           message: data.message || '',
           timestamp: new Date().toISOString()
         }]
@@ -300,6 +327,7 @@ function App() {
           id: requestId,
           title: data.title,
           artist: data.artist,
+          album_art_url: data.albumArtUrl || null,
           votes: 0,
           is_locked: false,
           is_played: false,
@@ -313,16 +341,20 @@ function App() {
         .insert([{
           id: crypto.randomUUID(),
           request_id: requestId,
-          name: currentUser.name,
-          photo: currentUser.photo,
-          message: data.message || '',
-          timestamp: new Date().toISOString()
+          name: requesterName,
+          photo: requesterPhoto || '',
+          message: data.message || ''
+          // created_at is automatically set by the database
         }]);
 
       if (requesterError) throw requesterError;
 
       requestRetriesRef.current = 0;
       console.log('✅ Request submitted successfully');
+
+      // Immediately refresh requests to show the new submission
+      refreshRequests();
+
       return true;
     } catch (error) {
       console.error('Error submitting request:', error);
@@ -366,7 +398,7 @@ function App() {
     } finally {
       requestInProgressRef.current = false;
     }
-  }, [reconnectRequests, currentUser, isOnline]);
+  }, [reconnectRequests, refreshRequests, currentUser, isOnline]);
 
   // Enhanced vote handler with atomic database function and optimistic updates
   const handleVoteRequest = useCallback(async (id: string): Promise<boolean> => {
@@ -570,17 +602,253 @@ function App() {
     }
   }, [isOnline]);
 
+  // Handle resetting the entire queue
+  const handleResetQueue = useCallback(async () => {
+    if (!isOnline) {
+      toast.error('Cannot reset queue while offline. Please check your internet connection.');
+      return;
+    }
+
+    try {
+      console.log('🗑️ Resetting entire queue...');
+
+      // Delete all user votes
+      const { error: votesError } = await supabase
+        .from('user_votes')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+      if (votesError) throw votesError;
+
+      // Delete all requesters
+      const { error: requestersError } = await supabase
+        .from('requesters')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+      if (requestersError) throw requestersError;
+
+      // Delete all requests
+      const { error: requestsError } = await supabase
+        .from('requests')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+
+      if (requestsError) throw requestsError;
+
+      toast.success('Queue cleared successfully!');
+    } catch (error) {
+      console.error('Error resetting queue:', error);
+      toast.error('Failed to clear queue. Please try again.');
+    }
+  }, [isOnline]);
+
+  // Handle creating a new set list
+  const handleCreateSetList = useCallback(async (setList: Omit<SetList, 'id'>) => {
+    if (!isOnline) {
+      toast.error('Cannot create set lists while offline.');
+      return;
+    }
+
+    try {
+      console.log('📝 Creating new set list:', setList.name);
+      const setListId = crypto.randomUUID();
+
+      // Insert set list
+      const { error: setListError } = await supabase
+        .from('set_lists')
+        .insert([{
+          id: setListId,
+          name: setList.name,
+          date: setList.date,
+          notes: setList.notes,
+          is_active: false
+        }]);
+
+      if (setListError) throw setListError;
+
+      // Insert songs with positions
+      if (setList.songs && setList.songs.length > 0) {
+        const setListSongs = setList.songs.map((song, index) => ({
+          set_list_id: setListId,
+          song_id: song.id,
+          position: index
+        }));
+
+        const { error: songsError } = await supabase
+          .from('set_list_songs')
+          .insert(setListSongs);
+
+        if (songsError) throw songsError;
+      }
+
+      // Immediately update local state with the new set list
+      const newSetList: SetList = {
+        id: setListId,
+        name: setList.name,
+        date: setList.date,
+        notes: setList.notes || '',
+        isActive: false,
+        songs: setList.songs || [],
+        createdAt: new Date().toISOString()
+      };
+
+      setSetLists(prev => [newSetList, ...prev]);
+
+      toast.success('Set list created successfully!');
+    } catch (error) {
+      console.error('Error creating set list:', error);
+      toast.error('Failed to create set list.');
+    }
+  }, [isOnline]);
+
+  // Handle updating an existing set list
+  const handleUpdateSetList = useCallback(async (setList: SetList) => {
+    if (!isOnline) {
+      toast.error('Cannot update set lists while offline.');
+      return;
+    }
+
+    try {
+      console.log('✏️ Updating set list:', setList.id);
+
+      // Update set list metadata
+      const { error: updateError } = await supabase
+        .from('set_lists')
+        .update({
+          name: setList.name,
+          date: setList.date,
+          notes: setList.notes
+        })
+        .eq('id', setList.id);
+
+      if (updateError) throw updateError;
+
+      // Delete existing songs
+      const { error: deleteError } = await supabase
+        .from('set_list_songs')
+        .delete()
+        .eq('set_list_id', setList.id);
+
+      if (deleteError) throw deleteError;
+
+      // Insert updated songs with positions
+      if (setList.songs && setList.songs.length > 0) {
+        const setListSongs = setList.songs.map((song, index) => ({
+          set_list_id: setList.id,
+          song_id: song.id,
+          position: index
+        }));
+
+        const { error: insertError } = await supabase
+          .from('set_list_songs')
+          .insert(setListSongs);
+
+        if (insertError) throw insertError;
+      }
+
+      toast.success('Set list updated successfully!');
+    } catch (error) {
+      console.error('Error updating set list:', error);
+      toast.error('Failed to update set list.');
+    }
+  }, [isOnline]);
+
+  // Handle deleting a set list
+  const handleDeleteSetList = useCallback(async (id: string) => {
+    if (!isOnline) {
+      toast.error('Cannot delete set lists while offline.');
+      return;
+    }
+
+    try {
+      console.log('🗑️ Deleting set list:', id);
+
+      // Delete set list (cascade will delete set_list_songs)
+      const { error } = await supabase
+        .from('set_lists')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+
+      toast.success('Set list deleted successfully!');
+    } catch (error) {
+      console.error('Error deleting set list:', error);
+      toast.error('Failed to delete set list.');
+    }
+  }, [isOnline]);
+
+  // Handle setting a set list as active
+  const handleSetActive = useCallback(async (id: string) => {
+    if (!isOnline) {
+      toast.error('Cannot change set list status while offline.');
+      return;
+    }
+
+    try {
+      console.log('🎯 Setting active set list:', id);
+
+      // Get current active status
+      const { data: currentSetList, error: fetchError } = await supabase
+        .from('set_lists')
+        .select('is_active')
+        .eq('id', id)
+        .single();
+
+      if (fetchError) throw fetchError;
+
+      const newActiveStatus = !currentSetList.is_active;
+
+      // Update active status (database trigger ensures only one is active)
+      const { error: updateError } = await supabase
+        .from('set_lists')
+        .update({ is_active: newActiveStatus })
+        .eq('id', id);
+
+      if (updateError) throw updateError;
+
+      toast.success(newActiveStatus ? 'Set list activated!' : 'Set list deactivated!');
+    } catch (error) {
+      console.error('Error setting active set list:', error);
+      toast.error('Failed to change set list status.');
+    }
+  }, [isOnline]);
+
   // Create merged requests with optimistic updates
   const mergedRequests = useMemo(() => {
-    return requests.map(req => ({
+    console.log('🔄 mergedRequests useMemo recalculating...');
+    console.log('🔄 Input requests count:', requests.length);
+    console.log('🔄 Input optimisticVotes size:', optimisticVotes.size);
+
+    const merged = requests.map(req => ({
       ...req,
       votes: optimisticVotes.get(req.id) ?? req.votes ?? 0
     }));
+
+    console.log('🔄 Output merged requests count:', merged.length);
+    console.log('🔄 First 3 merged:', merged.slice(0, 3).map(r => ({
+      id: r.id,
+      title: r.title,
+      votes: r.votes,
+      requesters: r.requesters?.length || 0
+    })));
+
+    return merged;
   }, [requests, optimisticVotes]);
 
-  // Show loading screen
-  if (isInitializing) {
-    return <LoadingSpinner />;
+  // Show loading screen - enforce minimum display time
+  const shouldShowLoader = isInitializing || settingsLoading || !minLoadTimePassed;
+
+  if (shouldShowLoader) {
+    // Show branded preloader for minimum 3 seconds
+    return (
+      <LoadingPreloader
+        logoUrl={settings?.band_logo_url || DEFAULT_BAND_LOGO}
+        accentColor={settings?.frontend_accent_color || '#ff00ff'}
+        bandName={settings?.band_name || 'Band Name'}
+      />
+    );
   }
 
   // Show kiosk mode
@@ -660,6 +928,7 @@ function App() {
                 onUnlockRequest={handleUnlockRequest}
                 onMarkAsPlayed={handleMarkAsPlayed}
                 onRemoveRequest={handleRemoveRequest}
+                onResetQueue={handleResetQueue}
                 isOnline={isOnline}
               />
             )}
@@ -667,8 +936,10 @@ function App() {
               <SetListManager
                 setLists={setLists}
                 songs={songs}
-                onSetListsChange={setSetLists}
-                isOnline={isOnline}
+                onCreateSetList={handleCreateSetList}
+                onUpdateSetList={handleUpdateSetList}
+                onDeleteSetList={handleDeleteSetList}
+                onSetActive={handleSetActive}
               />
             )}
             {activeBackendTab === 'songs' && (
@@ -683,7 +954,21 @@ function App() {
                 <SettingsManager />
                 <LogoManager />
                 <ColorCustomizer />
-                <TickerManager isAdmin={true} />
+                <TickerManager
+                  isAdmin={true}
+                  nextSong={requests.find(r => r.isLocked && !r.isPlayed) ? {
+                    title: requests.find(r => r.isLocked && !r.isPlayed)!.title,
+                    artist: requests.find(r => r.isLocked && !r.isPlayed)!.artist
+                  } : undefined}
+                  isActive={!!settings?.ticker_active}
+                  customMessage={settings?.custom_message || ''}
+                  onUpdateMessage={(message) => {
+                    // This will be handled by the TickerManager through updateSettings
+                  }}
+                  onToggleActive={() => {
+                    // This will be handled by the TickerManager through updateSettings
+                  }}
+                />
               </div>
             )}
           </div>

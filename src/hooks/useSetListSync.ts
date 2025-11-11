@@ -188,60 +188,60 @@ export function useSetListSync({
     }
   }, [setSetLists, retryCount]);
 
+  // Setup subscriptions function (defined at component level for reuse)
+  const setupSubscriptions = useCallback(() => {
+    if (!isOnline) return;
+
+    try {
+      // Subscribe to set_lists table
+      const setListsSub = RealtimeManager.createSubscription(
+        'set_lists',
+        (payload) => {
+          console.log('Set lists changed:', payload.eventType);
+          fetchSetLists(true);
+        }
+      );
+
+      // Subscribe to set_list_songs table
+      const setListSongsSub = RealtimeManager.createSubscription(
+        'set_list_songs',
+        (payload) => {
+          console.log('Set list songs changed:', payload.eventType);
+          fetchSetLists(true);
+        }
+      );
+      // Subscribe specifically to set list activation changes
+      const setListActivationSub = RealtimeManager.createSubscription(
+        'set_lists',
+        (payload) => {
+          console.log('🔔 Set list activation changed:', payload);
+          // If this is an update and is_active changed, fetch immediately with high priority
+          if (payload.eventType === 'UPDATE' &&
+              payload.new && payload.old &&
+              payload.new.is_active !== payload.old.is_active) {
+            console.log('⚡ Set list activation state changed - immediate update');
+            // Clear cache and fetch fresh data
+            cacheService.del(SET_LISTS_CACHE_KEY);
+            fetchSetLists(true);
+          }
+        },
+        { event: 'UPDATE', schema: 'public', table: 'set_lists', filter: `is_active=eq.true` }
+      );
+
+      setListsSubscriptionRef.current = setListsSub;
+      setListSongsSubscriptionRef.current = setListSongsSub;
+      setListActivationSubscriptionRef.current = setListActivationSub;
+    } catch (error) {
+      console.error('Error setting up realtime subscriptions:', error);
+    }
+  }, [isOnline, fetchSetLists]);
+
   // Setup realtime subscriptions
   useEffect(() => {
     mountedRef.current = true;
-    
+
     // Initialize RealtimeManager
     RealtimeManager.init();
-    
-    // Setup subscriptions
-    const setupSubscriptions = () => {
-      if (!isOnline) return;
-      
-      try {
-        // Subscribe to set_lists table
-        const setListsSub = RealtimeManager.createSubscription(
-          'set_lists',
-          (payload) => {
-            console.log('Set lists changed:', payload.eventType);
-            fetchSetLists(true);
-          }
-        );
-        
-        // Subscribe to set_list_songs table
-        const setListSongsSub = RealtimeManager.createSubscription(
-          'set_list_songs',
-          (payload) => {
-            console.log('Set list songs changed:', payload.eventType);
-            fetchSetLists(true);
-          }
-        );
-        // Subscribe specifically to set list activation changes
-        const setListActivationSub = RealtimeManager.createSubscription(
-          'set_lists',
-          (payload) => {
-            console.log('🔔 Set list activation changed:', payload);
-            // If this is an update and is_active changed, fetch immediately with high priority
-            if (payload.eventType === 'UPDATE' && 
-                payload.new && payload.old && 
-                payload.new.is_active !== payload.old.is_active) {
-              console.log('⚡ Set list activation state changed - immediate update');
-              // Clear cache and fetch fresh data
-              cacheService.del(SET_LISTS_CACHE_KEY);
-              fetchSetLists(true);
-            }
-          },
-          { event: 'UPDATE', schema: 'public', table: 'set_lists', filter: `is_active=eq.true` }
-        );
-        
-        setListsSubscriptionRef.current = setListsSub;
-        setListSongsSubscriptionRef.current = setListSongsSub;
-        setListActivationSubscriptionRef.current = setListActivationSub;
-      } catch (error) { 
-        console.error('Error setting up realtime subscriptions:', error);
-      }
-    };
     
     // Initial fetch and subscription setup
     if (isOnline) {
@@ -282,7 +282,7 @@ export function useSetListSync({
         RealtimeManager.removeSubscription(setListActivationSubscriptionRef.current);
       }
     };
-  }, [fetchSetLists]);
+  }, [fetchSetLists, setupSubscriptions, isOnline]);
 
   // Function to manually reconnect
   const reconnectSetLists = useCallback(() => {
@@ -320,7 +320,7 @@ export function useSetListSync({
       // Force a fresh fetch
       fetchSetLists(true);
     }
-  }, [fetchSetLists, isOnline, setupSubscriptions]);
+  }, [fetchSetLists, isOnline]);
 
   return { 
     isLoading, 

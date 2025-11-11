@@ -5,6 +5,7 @@ import { SongList } from './SongList';
 import { UpvoteList } from './UpvoteList';
 import { RequestModal } from './RequestModal';
 import { LandingPage } from './LandingPage';
+import { WelcomeScreen } from './WelcomeScreen';
 import { Ticker } from './Ticker';
 import { useUiSettings } from '../hooks/useUiSettings';
 import toast from 'react-hot-toast';
@@ -46,13 +47,22 @@ export function UserFrontend({
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [activeTab, setActiveTab] = useState<'requests' | 'upvote'>('requests');
-  
+  const [showWelcome, setShowWelcome] = useState(true);
+
   // Local state for UI feedback only
   const [submittingStates, setSubmittingStates] = useState<Set<string>>(new Set());
   const [votingStates, setVotingStates] = useState<Set<string>>(new Set());
-  
+
   const mountedRef = useRef(true);
   const { settings } = useUiSettings();
+
+  // Check if user has seen welcome screen before
+  useEffect(() => {
+    const hasSeenWelcome = localStorage.getItem('hasSeenWelcome');
+    if (hasSeenWelcome === 'true' || currentUser) {
+      setShowWelcome(false);
+    }
+  }, [currentUser]);
 
   // Cleanup on unmount
   useEffect(() => {
@@ -175,10 +185,27 @@ export function UserFrontend({
     setIsEditingProfile(false);
   };
 
+  const handleWelcomeStart = () => {
+    localStorage.setItem('hasSeenWelcome', 'true');
+    setShowWelcome(false);
+  };
+
+  // Show welcome screen for first-time users
+  if (showWelcome && !currentUser) {
+    return (
+      <WelcomeScreen
+        onStart={handleWelcomeStart}
+        logoUrl={logoUrl}
+        bandName={settings?.band_name || 'Band Name'}
+        accentColor={accentColor}
+      />
+    );
+  }
+
   // Show profile editing page when isEditingProfile is true OR no currentUser
   if (isEditingProfile || !currentUser || !currentUser.name) {
     return (
-      <LandingPage 
+      <LandingPage
         onComplete={handleProfileUpdate}
         initialUser={currentUser}
       />
@@ -285,6 +312,7 @@ export function UserFrontend({
               {filteredSongs.length > 0 ? (
                 <SongList
                   songs={filteredSongs}
+                  requests={requests}
                   onSongSelect={handleSongSelect}
                 />
               ) : (

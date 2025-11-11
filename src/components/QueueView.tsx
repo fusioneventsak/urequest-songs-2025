@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { ThumbsUp, Lock, CheckCircle2, ChevronDown, ChevronUp, Users, UserCircle } from 'lucide-react';
+import { ThumbsUp, Lock, CheckCircle2, ChevronDown, ChevronUp, Users, UserCircle, Maximize2, MessageCircle, FileText, Flame } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { useUiSettings } from '../hooks/useUiSettings';
 import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
+import { EnlargeModal } from './EnlargeModal';
+import { LyricsModal } from './LyricsModal';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
 import type { SongRequest } from '../types';
@@ -10,8 +12,11 @@ import type { SongRequest } from '../types';
 interface QueueViewProps {
   requests: SongRequest[];
   onLockRequest: (id: string) => void;
-  onMarkPlayed: (id: string) => void;
+  onUnlockRequest?: (id: string) => void;
+  onMarkAsPlayed: (id: string) => void;
+  onRemoveRequest?: (id: string) => void;
   onResetQueue?: () => void;
+  isOnline?: boolean;
 }
 
 const decodeTitle = (title: string) => {
@@ -22,19 +27,58 @@ const decodeTitle = (title: string) => {
   }
 };
 
-export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue }: QueueViewProps) {
+export function QueueView({
+  requests,
+  onLockRequest,
+  onUnlockRequest,
+  onMarkAsPlayed,
+  onRemoveRequest,
+  onResetQueue,
+  isOnline = true
+}: QueueViewProps) {
+  console.log('📺 QueueView rendered with requests:', {
+    count: requests.length,
+    requests: requests.slice(0, 3).map(r => ({
+      id: r.id,
+      title: r.title,
+      requesters: r.requesters?.length || 0
+    }))
+  });
+
   const [lockingStates, setLockingStates] = useState<Set<string>>(new Set());
   const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set());
   const [isResetting, setIsResetting] = useState(false);
   const [optimisticLocks, setOptimisticLocks] = useState<Set<string>>(new Set());
-  
+  const [optimisticPlayed, setOptimisticPlayed] = useState<Set<string>>(new Set());
+  const [enlargeModal, setEnlargeModal] = useState<{
+    isOpen: boolean;
+    type: 'photo' | 'message';
+    content: string;
+    userName?: string;
+  }>({
+    isOpen: false,
+    type: 'photo',
+    content: '',
+    userName: ''
+  });
+
+  const [lyricsModal, setLyricsModal] = useState<{
+    isOpen: boolean;
+    trackName: string;
+    artistName: string;
+  }>({
+    isOpen: false,
+    trackName: '',
+    artistName: ''
+  });
+
   // Track if component is mounted
   const mountedRef = useRef<boolean>(true);
   
   // Handle queue reset with confirmation
   const handleResetQueue = async () => {
     if (!onResetQueue) return;
-    
+
     if (window.confirm('Are you sure you want to clear all pending requests and votes? This will also reset any rate limits.')) {
       setIsResetting(true);
       try {
@@ -43,6 +87,53 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
         setIsResetting(false);
       }
     }
+  };
+
+  // Handle photo enlargement
+  const handlePhotoClick = (photoUrl: string, userName: string) => {
+    setEnlargeModal({
+      isOpen: true,
+      type: 'photo',
+      content: photoUrl,
+      userName
+    });
+  };
+
+  // Handle message enlargement
+  const handleMessageClick = (message: string, userName: string) => {
+    setEnlargeModal({
+      isOpen: true,
+      type: 'message',
+      content: message,
+      userName
+    });
+  };
+
+  // Close modal
+  const closeModal = () => {
+    setEnlargeModal({
+      isOpen: false,
+      type: 'photo',
+      content: '',
+      userName: ''
+    });
+  };
+
+  // Handle lyrics modal
+  const handleShowLyrics = (trackName: string, artistName: string) => {
+    setLyricsModal({
+      isOpen: true,
+      trackName,
+      artistName
+    });
+  };
+
+  const closeLyricsModal = () => {
+    setLyricsModal({
+      isOpen: false,
+      trackName: '',
+      artistName: ''
+    });
   };
 
   useEffect(() => {
@@ -111,7 +202,7 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
     const requestMap = new Map<string, SongRequest>();
 
     requests
-      .filter(request => !request.isPlayed)
+      .filter(request => !request.isPlayed && !optimisticPlayed.has(request.id))
       .forEach(request => {
         const key = `${request.title.toLowerCase()}|${(request.artist || '').toLowerCase()}`;
         
@@ -175,9 +266,9 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
       requestersCount: r.requesters?.length || 0,
       allHaveMessages: r.requesters?.every(req => !!req.message)
     })));
-    
+
     return result;
-  }, [requests]);
+  }, [requests, optimisticPlayed]);
 
   // Sort deduplicated requests
   const sortedRequests = useMemo(() => {
@@ -268,9 +359,8 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
           setOptimisticLocks(new Set());
         }
       }, 300);
-      
-      // Show success toast
-      toast.success(newLockedState ? 'Request locked as next song' : 'Request unlocked');
+
+      // Success toast is shown by the parent handler (App.tsx)
     } catch (error) {
       console.error('❌ Error updating lock status:', error);
       
@@ -335,7 +425,7 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
           const isOptimisticallyLocked = optimisticLocks.has(request.id);
           const isActuallyLocked = request.isLocked && !optimisticLocks.size;
           const displayLocked = isOptimisticallyLocked || isActuallyLocked;
-          
+
           // Check if requesters is a valid, populated array
           const hasRequesters = Array.isArray(request.requesters) && request.requesters.length > 0;
           // Get actual requester count, ensuring it's at least 1
@@ -344,6 +434,10 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
           const priority = requesterCount + (request.votes || 0);
           // Check if this request is currently expanded
           const isExpanded = expandedRequests.has(request.id);
+          // Consider a song "hot" if it has multiple requesters or high votes, or if explicitly marked
+          const isHot = request.isHot || request.requesters?.length >= 3 || request.votes >= 5;
+          // Check if any requester has a message
+          const hasMessages = request.requesters?.some(r => r.message);
           
           return (
             <div
@@ -363,9 +457,34 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
               <div className="flex flex-col">
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-base md:text-lg font-semibold text-white truncate">
-                      {decodeTitle(request.title)}
-                    </h3>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h3 className="text-base md:text-lg font-semibold text-white truncate">
+                        {decodeTitle(request.title)}
+                      </h3>
+                      {isHot && (
+                        <div className="flex items-center gap-1 bg-gradient-to-r from-orange-500 to-red-500 px-2 py-1 rounded-full animate-pulse flex-shrink-0">
+                          <Flame className="w-4 h-4 text-white" />
+                          <span className="text-xs font-bold text-white uppercase">Hot</span>
+                        </div>
+                      )}
+                      {hasMessages && (
+                        <div className="flex items-center gap-1 bg-gradient-to-r from-blue-500 to-purple-500 px-2 py-1 rounded-full animate-pulse flex-shrink-0">
+                          <MessageCircle className="w-4 h-4 text-white" />
+                          <span className="text-xs font-bold text-white uppercase">Message</span>
+                        </div>
+                      )}
+                      <button
+                        onClick={() => handleShowLyrics(request.title, request.artist || '')}
+                        className="px-3 py-1.5 rounded-lg transition-all duration-200 flex items-center gap-2 bg-purple-600 text-white hover:bg-purple-700 shadow-lg flex-shrink-0"
+                        style={{
+                          boxShadow: '0 0 15px rgba(147, 51, 234, 0.5)',
+                        }}
+                        title="Show Lyrics"
+                      >
+                        <FileText className="w-4 h-4" />
+                        <span className="text-sm font-medium">Lyrics</span>
+                      </button>
+                    </div>
                     {request.artist && (
                       <p className="text-gray-300 text-sm truncate">{request.artist}</p>
                     )}
@@ -403,7 +522,12 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
                       )}
                     </button>
                     <button
-                      onClick={() => onMarkPlayed(request.id)}
+                      onClick={() => {
+                        // Optimistically hide this request immediately
+                        setOptimisticPlayed(prev => new Set([...prev, request.id]));
+                        // Call the actual handler
+                        onMarkAsPlayed(request.id);
+                      }}
                       className="p-2 rounded-lg transition-all duration-200 flex items-center bg-red-500 text-white hover:bg-red-600 shadow-lg"
                       style={{
                         boxShadow: '0 0 15px rgba(239, 68, 68, 0.5)',
@@ -420,16 +544,26 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
                   <div className="mt-2 flex items-center space-x-1 overflow-hidden">
                     <div className="flex -space-x-2">
                       {request.requesters.slice(0, 3).map((requester, idx) => (
-                        <div key={`preview-${request.id}-${idx}`} className="relative">
-                          <img 
-                            src={requester.photo || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E"} 
-                            alt={requester.name} 
-                            className="w-7 h-7 rounded-full border"
-                            style={{ borderColor: accentColor }}
-                            onError={(e) => {
-                              e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E";
-                            }}
-                          />
+                        <div key={`preview-${request.id}-${idx}`} className="relative group">
+                          <button
+                            onClick={() => handlePhotoClick(requester.photo || '', requester.name)}
+                            className="relative block"
+                            title={`Click to enlarge ${requester.name}'s photo`}
+                          >
+                            <img
+                              src={requester.photo || "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E"}
+                              alt={requester.name}
+                              className="w-7 h-7 rounded-full border transition-all group-hover:scale-125 group-hover:shadow-xl cursor-pointer"
+                              style={{ borderColor: accentColor }}
+                              onError={(e) => {
+                                e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E";
+                              }}
+                            />
+                            {/* Enlarge icon overlay */}
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/50 rounded-full transition-all">
+                              <Maximize2 className="w-3 h-3 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                            </div>
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -449,19 +583,28 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
                         key={`${request.id}-requester-${index}-${requester.id}`}
                         className="flex items-center space-x-2 bg-neon-purple/10 rounded-lg p-2.5"
                       >
-                        <div className="flex-shrink-0">
+                        <div className="flex-shrink-0 relative group">
                           {requester.photo ? (
-                            <img
-                              src={requester.photo}
-                              alt={requester.name || "Requester"}
-                              className="w-8 h-8 rounded-full border-2"
-                              style={{ borderColor: accentColor }}
-                              title={requester.name || "Requester"}
-                              onError={(e) => {
-                                e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E";
-                                e.currentTarget.className = "w-8 h-8 rounded-full bg-gray-700 p-0.5 text-white";
-                              }}
-                            />
+                            <button
+                              onClick={() => handlePhotoClick(requester.photo || '', requester.name)}
+                              className="relative block"
+                              title={`Click to enlarge ${requester.name}'s photo`}
+                            >
+                              <img
+                                src={requester.photo}
+                                alt={requester.name || "Requester"}
+                                className="w-8 h-8 rounded-full border-2 transition-all group-hover:scale-110 group-hover:shadow-xl cursor-pointer"
+                                style={{ borderColor: accentColor }}
+                                onError={(e) => {
+                                  e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2'%3E%3C/path%3E%3Ccircle cx='12' cy='7' r='4'%3E%3C/circle%3E%3C/svg%3E";
+                                  e.currentTarget.className = "w-8 h-8 rounded-full bg-gray-700 p-0.5 text-white";
+                                }}
+                              />
+                              {/* Enlarge icon overlay */}
+                              <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/50 rounded-full transition-all">
+                                <Maximize2 className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                              </div>
+                            </button>
                           ) : (
                             <UserCircle className="w-8 h-8 text-gray-400" />
                           )}
@@ -476,9 +619,19 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
                             </span>
                           </div>
                           {requester.message && (
-                            <p className="text-xs text-gray-300 italic mt-1 bg-neon-purple/5 p-1.5 rounded">
-                              "{requester.message}"
-                            </p>
+                            <button
+                              onClick={() => handleMessageClick(requester.message!, requester.name)}
+                              className="w-full text-left group"
+                              title="Click to enlarge message"
+                            >
+                              <div className="flex items-start gap-1.5 text-xs text-gray-300 italic mt-1 bg-neon-purple/5 p-1.5 rounded hover:bg-neon-purple/10 transition-all cursor-pointer">
+                                <MessageCircle className="w-3 h-3 text-neon-pink flex-shrink-0 mt-0.5" />
+                                <p className="flex-1 truncate group-hover:text-neon-pink transition-colors">
+                                  "{requester.message}"
+                                </p>
+                                <Maximize2 className="w-3 h-3 text-gray-500 group-hover:text-neon-pink flex-shrink-0 opacity-0 group-hover:opacity-100 transition-all" />
+                              </div>
+                            </button>
                           )}
                         </div>
                       </div>
@@ -521,31 +674,22 @@ export function QueueView({ requests, onLockRequest, onMarkPlayed, onResetQueue 
         )}
       </div>
 
-      <style jsx>{`
-        @keyframes glow {
-          0%, 100% {
-            box-shadow: 0 0 20px ${accentColor}50;
-          }
-          50% {
-            box-shadow: 0 0 30px ${accentColor}80;
-          }
-        }
-        
-        @keyframes pulse {
-          0%, 100% {
-            transform: scale(1);
-            opacity: 1;
-          }
-          50% {
-            transform: scale(1.1);
-            opacity: 0.8;
-          }
-        }
+      {/* Enlarge Modal */}
+      <EnlargeModal
+        isOpen={enlargeModal.isOpen}
+        onClose={closeModal}
+        type={enlargeModal.type}
+        content={enlargeModal.content}
+        userName={enlargeModal.userName}
+      />
 
-        .shadow-glow {
-          box-shadow: 0 0 15px ${accentColor}70;
-        }
-      `}</style>
+      {/* Lyrics Modal */}
+      <LyricsModal
+        isOpen={lyricsModal.isOpen}
+        onClose={closeLyricsModal}
+        trackName={lyricsModal.trackName}
+        artistName={lyricsModal.artistName}
+      />
     </div>
   );
 }

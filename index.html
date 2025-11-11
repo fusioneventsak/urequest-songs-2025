@@ -3,8 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>uRequest Live - Band Request Hub</title>
+
+    <!-- PWA Meta Tags -->
+    <meta name="application-name" content="uRequest Live" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="uRequest Live" />
+    <meta name="description" content="Interactive song request platform for live bands and their audience" />
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#ff00ff" />
+
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- iOS Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/icons/icon-192x192.png" />
+
+    <!-- iOS Splash Screens -->
+    <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
+
+    <!-- Standard Icons -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-192x192.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-192x192.png" />
     
     <!-- Instant Color Loading Script - Must be before any React code -->
     <script>
@@ -89,35 +115,156 @@
       html, body {
         margin: 0;
         padding: 0;
-        background-color: var(--frontend-bg-color, #13091f);
+        background-color: #000000;
         color: white;
         font-family: system-ui, -apple-system, sans-serif;
         overflow-x: hidden;
         scroll-behavior: smooth;
       }
-      
+
       #root {
         min-height: 100vh;
-        background-color: var(--frontend-bg-color, #13091f);
+        background: radial-gradient(ellipse at center, rgba(255, 0, 255, 0.2), transparent 60%),
+                    linear-gradient(to bottom, #000000, rgba(255, 0, 255, 0.1), #000000);
       }
-      
-      /* Loading state */
+
+      /* Branded Loading Preloader */
       .app-loading {
+        position: fixed;
+        inset: 0;
         display: flex;
         align-items: center;
         justify-content: center;
         min-height: 100vh;
-        background-color: var(--frontend-bg-color, #13091f);
-        color: var(--frontend-accent-color, #ff00ff);
+        background: radial-gradient(ellipse at center, rgba(255, 0, 255, 0.2), transparent 60%),
+                    linear-gradient(to bottom, #000000, rgba(255, 0, 255, 0.1), #000000);
+        z-index: 9999;
+      }
+
+      .app-loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2rem;
+      }
+
+      .app-loading-logo {
+        position: relative;
+        height: 8rem;
+        max-width: 90vw;
+      }
+
+      @media (min-width: 768px) {
+        .app-loading-logo {
+          height: 10rem;
+        }
+      }
+
+      .app-loading-logo-glow {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(circle, #ff00ff, transparent);
+        filter: blur(3rem);
+        opacity: 0.5;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      .app-loading-logo img {
+        position: relative;
+        height: 100%;
+        width: auto;
+        object-fit: contain;
+        filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.8));
+        z-index: 10;
+      }
+
+      .app-loading-band-name {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #ff00ff;
+        text-align: center;
+        margin-top: 1.5rem;
+        text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+      }
+
+      @media (min-width: 768px) {
+        .app-loading-band-name {
+          font-size: 2.5rem;
+        }
+      }
+
+      .app-loading-text {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #ff00ff;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        margin-bottom: 1rem;
+        opacity: 0.9;
+      }
+
+      .app-loading-spinner {
+        width: 2rem;
+        height: 2rem;
+        border: 3px solid rgba(255, 0, 255, 0.3);
+        border-top-color: #ff00ff;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
+      @keyframes pulse {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 0.8; }
+      }
+
+      /* Hide loading when React takes over */
+      #root:not(:empty) .app-loading {
+        display: none;
       }
     </style>
   </head>
   <body>
     <div id="root">
-      <!-- Fallback loading indicator -->
+      <!-- Branded loading preloader - shows before React loads -->
       <div class="app-loading">
-        <div>Loading uRequest Live...</div>
+        <div class="app-loading-content">
+          <div class="app-loading-logo">
+            <div class="app-loading-logo-glow"></div>
+            <img
+              src="https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png"
+              alt="uRequest Live"
+              onerror="this.style.display='none'"
+            />
+          </div>
+          <div class="app-loading-band-name" id="preloader-band-name">Band Name</div>
+          <div class="app-loading-text">Now Loading</div>
+          <div class="app-loading-spinner"></div>
+        </div>
       </div>
+
+      <!-- Script to load band name from settings -->
+      <script>
+        (function() {
+          try {
+            const settings = localStorage.getItem('uiSettings');
+            if (settings) {
+              const parsed = JSON.parse(settings);
+              if (parsed.band_name) {
+                const nameElement = document.getElementById('preloader-band-name');
+                if (nameElement) {
+                  nameElement.textContent = parsed.band_name;
+                }
+              }
+            }
+          } catch (e) {
+            console.log('Could not load band name for preloader');
+          }
+        })();
+      </script>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

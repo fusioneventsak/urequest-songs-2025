@@ -2,6 +2,8 @@ import { useEffect, useCallback, useState, useRef } from 'react';
 import { supabase } from '../utils/supabase';
 import type { SongRequest } from '../types';
 
+console.log('🔥🔥🔥 USE REQUEST SYNC FILE LOADED - FRESH CODE 🔥🔥🔥');
+
 const CACHE_DURATION = 30000; // 30 seconds
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000;
@@ -24,6 +26,14 @@ export function useRequestSync({
   isOnline,
   currentUser
 }: UseRequestSyncProps) {
+  console.log('🔥🔥🔥 useRequestSync HOOK CALLED 🔥🔥🔥');
+  console.log('📊 Hook params:', {
+    requestsCount: requests.length,
+    setRequestsType: typeof setRequests,
+    isOnline,
+    currentUser: currentUser?.name || 'null'
+  });
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -111,15 +121,16 @@ export function useRequestSync({
         return {
           id: request.id,
           title: request.title,
-          artist: request.artist || '', 
+          artist: request.artist || '',
+          albumArtUrl: request.album_art_url || undefined,
           requesters: (request.requesters || []).map((requester: any) => ({
             id: requester.id,
             name: requester.name || 'Anonymous',
             photo: requester.photo || '',
             message: requester.message || '',
-            timestamp: new Date(requester.created_at)
+            timestamp: requester.created_at  // Fixed: changed from createdAt to timestamp
           })),
-          votes: request.votes || 0, 
+          votes: request.votes || 0,
           status: request.status as any,
           isLocked: request.is_locked || false,
           isPlayed: request.is_played || false,
@@ -135,12 +146,27 @@ export function useRequestSync({
         requesters: r.requesters.length
       })));
 
-      if (mountedRef.current) { 
-        console.log('🚀 About to call onUpdate with:', transformedRequests.length, 'requests');
+      if (mountedRef.current) {
+        console.log('🚀 About to call setRequests with:', transformedRequests.length, 'requests');
+        console.log('🔍 setRequests function type:', typeof setRequests);
+        console.log('🔍 setRequests function reference ID:', setRequests.toString().substring(0, 50));
+        console.log('🔍 mountedRef.current:', mountedRef.current);
+        console.log('🔍 First 3 requests:', transformedRequests.slice(0, 3).map(r => ({
+          id: r.id,
+          title: r.title,
+          requesters: r.requesters.length
+        })));
+
+        console.log('⚡ CALLING setRequests NOW...');
         setRequests(transformedRequests);
+        console.log('⚡ setRequests CALL COMPLETE');
+
+        console.log('✅ setRequests called successfully');
         cacheRef.current = { data: transformedRequests, timestamp: Date.now() };
         lastUpdateRef.current = Date.now();
         setRetryCount(0);
+      } else {
+        console.error('❌ CRITICAL: mountedRef.current is FALSE - component unmounted!');
       }
     } catch (error) {
       console.error('❌ Error fetching requests:', error); 
@@ -197,10 +223,11 @@ export function useRequestSync({
             }
             
             debounceTimer = setTimeout(() => {
-              const timeSinceLastUpdate = Date.now() - lastUpdateRef.current; 
-              
+              const timeSinceLastUpdate = Date.now() - lastUpdateRef.current;
+
               // Only refetch if enough time has passed or it's a critical change
-              if (timeSinceLastUpdate > 2000 || payload.eventType === 'DELETE') {
+              // INSERT/UPDATE events always trigger refetch
+              if (timeSinceLastUpdate > 2000 || payload.eventType === 'DELETE' || payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
                 fetchRequests(true);
               }
             }, 500);
@@ -293,11 +320,15 @@ export function useRequestSync({
 
   // Cleanup on unmount
   useEffect(() => {
+    mountedRef.current = true;
+    console.log('🔧 useRequestSync: Setting mountedRef.current = TRUE');
+
     return () => {
+      console.log('🔧 useRequestSync: CLEANUP RUNNING - Setting mountedRef.current = FALSE');
       mountedRef.current = false;
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();
-      } 
+      }
     };
   }, []);
 

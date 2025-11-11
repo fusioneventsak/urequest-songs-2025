@@ -16,27 +16,43 @@ interface TickerManagerProps {
 }
 
 // Implement the TickerManager component with default props
-export function TickerManager({ 
+export function TickerManager({
   isAdmin = false,
-  nextSong, 
-  isActive = false, 
-  customMessage = '', 
-  onUpdateMessage = () => {}, 
-  onToggleActive = () => {} 
+  nextSong,
+  isActive = false,
+  customMessage = '',
+  onUpdateMessage = () => {},
+  onToggleActive = () => {}
 }: TickerManagerProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [localMessage, setLocalMessage] = useState(customMessage);
+  const [optimisticActive, setOptimisticActive] = useState<boolean | null>(null);
+  const [optimisticMessage, setOptimisticMessage] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout>();
   const { settings, updateSettings } = useUiSettings();
 
   // If not admin, don't render anything
   if (!isAdmin) return null;
 
+  // Use optimistic state if available, otherwise use prop
+  const displayActive = optimisticActive !== null ? optimisticActive : isActive;
+  const displayMessage = optimisticMessage !== null ? optimisticMessage : customMessage;
+
   // Sync localMessage when customMessage prop changes from external sources
   useEffect(() => {
     setLocalMessage(customMessage);
   }, [customMessage]);
+
+  // Clear optimistic state when prop updates match
+  useEffect(() => {
+    if (optimisticActive !== null && optimisticActive === isActive) {
+      setOptimisticActive(null);
+    }
+    if (optimisticMessage !== null && optimisticMessage === customMessage) {
+      setOptimisticMessage(null);
+    }
+  }, [isActive, customMessage, optimisticActive, optimisticMessage]);
 
   // Handle input changes - LOCAL ONLY, no auto-saving
   const handleInputChange = (newValue: string) => {
@@ -45,29 +61,30 @@ export function TickerManager({
   };
 
   const handleToggleActive = async () => {
+    const currentActive = displayActive;
+
     try {
-      setIsUpdating(true);
-
-      if (isActive) {
-        // STOPPING: Clear everything
+      if (currentActive) {
+        // STOPPING: Set optimistic state immediately
+        setOptimisticActive(false);
+        setOptimisticMessage('');
         setLocalMessage('');
-        onUpdateMessage('');
-        onToggleActive();
 
-        // Clear in database
+        // Then update database in background
+        setIsUpdating(true);
         await updateSettings({
           custom_message: '',
           ticker_active: false,
           updated_at: new Date().toISOString()
         });
       } else {
-        // STARTING: Send the message and activate
+        // STARTING: Validate and set optimistic state immediately
         if (localMessage.trim()) {
-          // Update parent state with the current message
-          onUpdateMessage(localMessage);
-          onToggleActive(); 
-          
-          // Send to database
+          setOptimisticActive(true);
+          setOptimisticMessage(localMessage);
+
+          // Then update database in background
+          setIsUpdating(true);
           await updateSettings({
             custom_message: localMessage,
             ticker_active: true,
@@ -75,11 +92,14 @@ export function TickerManager({
           });
         } else {
           console.warn('Cannot activate ticker without a custom message');
+          return;
         }
       }
     } catch (error) {
       console.error('Error toggling custom message:', error);
-      // Revert on error
+      // Revert optimistic updates on error
+      setOptimisticActive(null);
+      setOptimisticMessage(null);
       setLocalMessage(customMessage);
     } finally {
       setIsUpdating(false);
@@ -127,11 +147,11 @@ export function TickerManager({
         <h2 className="text-xl font-semibold neon-text">Ticker Management</h2>
         <div className="flex items-center space-x-3">
           {/* Clear Message Button */}
-          {(localMessage.trim() || isActive) && (
+          {(localMessage.trim() || displayActive) && (
             <button
               onClick={clearMessage}
               disabled={isUpdating}
-              className="neon-button bg-gray-600 hover:bg-gray-700 disabled:opacity-50"
+              className="neon-button bg-gray-600 hover:bg-gray-700 disabled:opacity-50 transition-all"
             >
               {isUpdating ? 'Clearing...' : 'Clear Message'}
             </button>
@@ -140,9 +160,9 @@ export function TickerManager({
           {/* Start/Stop Button */}
           <button
             onClick={handleToggleActive}
-            disabled={isUpdating || (!isActive && !localMessage.trim())}
-            className={`neon-button flex items-center disabled:opacity-50 ${
-              isActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
+            disabled={isUpdating || (!displayActive && !localMessage.trim())}
+            className={`neon-button flex items-center disabled:opacity-50 transition-all ${
+              displayActive ? 'bg-red-500 hover:bg-red-600' : 'bg-green-500 hover:bg-green-600'
             }`}
           >
             {isUpdating ? (
@@ -150,7 +170,7 @@ export function TickerManager({
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
                 Updating...
               </>
-            ) : isActive ? (
+            ) : displayActive ? (
               <>
                 <Pause className="w-4 h-4 mr-2" />
                 Stop Custom Message
@@ -189,14 +209,17 @@ export function TickerManager({
                 <span className="font-medium text-white">Custom Message</span>
               </div>
               <div className="flex items-center space-x-2">
-                <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-green-400' : 'bg-gray-400'}`} />
-                <p className={`${isActive ? 'text-green-400' : 'text-gray-400'}`}>
-                  {isActive ? 'Active' : 'Inactive'}
+                <div className={`w-3 h-3 rounded-full ${displayActive ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`} />
+                <p className={`font-semibold ${displayActive ? 'text-green-400' : 'text-gray-400'}`}>
+                  {displayActive ? 'ACTIVE' : 'Inactive'}
                 </p>
                 {isUpdating && (
                   <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
                 )}
               </div>
+              {displayActive && displayMessage && (
+                <p className="text-sm text-gray-300 mt-2 italic">"{displayMessage}"</p>
+              )}
             </div>
           </div>
         </div>

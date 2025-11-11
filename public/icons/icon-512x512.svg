@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background gradient -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#13091f;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1a0b2e;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" fill="url(#grad)" />
+
+  <!-- Border -->
+  <rect x="25.6" y="25.6"
+        width="460.8" height="460.8"
+        fill="none" stroke="#ff00ff" stroke-width="15.36"
+        rx="40.96" />
+
+  <!-- Music note -->
+  <text x="256" y="307.2"
+        font-family="Arial, sans-serif"
+        font-size="256"
+        font-weight="bold"
+        fill="#ff00ff"
+        text-anchor="middle"
+        dominant-baseline="middle">♪</text>
+
+  <!-- uRequest text -->
+  <text x="256" y="435.2"
+        font-family="Arial, sans-serif"
+        font-size="61.44"
+        font-weight="bold"
+        fill="#ff00ff"
+        text-anchor="middle">uRequest</text>
+</svg>
