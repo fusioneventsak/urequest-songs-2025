@@ -1,10 +1,11 @@
 // Service Worker for uRequest Live PWA
-const CACHE_NAME = 'urequest-live-v1';
-const RUNTIME_CACHE = 'urequest-runtime-v1';
+const CACHE_NAME = 'urequest-live-v2';
+const RUNTIME_CACHE = 'urequest-runtime-v2';
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
   '/',
+  '/backend',
   '/index.html',
   '/kiosk',
   '/queue',
