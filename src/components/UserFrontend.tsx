@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Music4, ThumbsUp, UserCircle, Settings } from 'lucide-react';
+import { Music4, ThumbsUp, UserCircle, Settings, Camera } from 'lucide-react';
 import { Logo } from './shared/Logo';
 import { SongList } from './SongList';
 import { UpvoteList } from './UpvoteList';
@@ -46,7 +46,7 @@ export function UserFrontend({
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const [activeTab, setActiveTab] = useState<'requests' | 'upvote'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'upvote' | 'photo'>('requests');
   const [showWelcome, setShowWelcome] = useState(true);
 
   // Local state for UI feedback only
@@ -75,6 +75,10 @@ export function UserFrontend({
   const navBgColor = settings?.nav_bg_color || '#0f051d';
   const highlightColor = settings?.highlight_color || '#ff00ff';
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
+
+  // Get photobooth URL and check if enabled
+  const photoboothUrl = settings?.photobooth_url;
+  const isPhotoboothEnabled = photoboothUrl && photoboothUrl.trim() !== '';
 
   // Get the locked request for the ticker (using passed requests)
   const lockedRequest = useMemo(() => {
@@ -212,21 +216,95 @@ export function UserFrontend({
     );
   }
 
+  // Full-screen photo mode
+  if (activeTab === 'photo' && isPhotoboothEnabled) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col">
+        {/* Full-screen iframe - stops before bottom nav */}
+        <div className="flex-1 overflow-hidden">
+          <iframe
+            src={photoboothUrl}
+            className="w-full h-full border-0"
+            title="Photobooth"
+            allow="camera; microphone; fullscreen"
+            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads"
+          />
+        </div>
+
+        {/* Bottom Navigation */}
+        <nav
+          className="bg-opacity-95 backdrop-blur-sm border-t border-neon-purple/20 px-6 py-3"
+          style={{ backgroundColor: navBgColor }}
+        >
+          <div className="flex justify-center space-x-1">
+            <button
+              onClick={() => setActiveTab('requests')}
+              className="flex-1 max-w-xs flex flex-col items-center py-2 px-4 rounded-lg transition-all"
+            >
+              <Music4
+                className="w-6 h-6 mb-1"
+                style={{ color: highlightColor }}
+              />
+              <span
+                className="text-xs font-medium"
+                style={{ color: highlightColor }}
+              >
+                Request Songs
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('photo')}
+              className="flex-1 max-w-xs flex flex-col items-center py-2 px-4 rounded-lg transition-all bg-neon-purple/20 border border-neon-pink/50"
+            >
+              <Camera
+                className="w-6 h-6 mb-1"
+                style={{ color: accentColor }}
+              />
+              <span
+                className="text-xs font-medium"
+                style={{ color: accentColor }}
+              >
+                Photo
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('upvote')}
+              className="flex-1 max-w-xs flex flex-col items-center py-2 px-4 rounded-lg transition-all"
+            >
+              <ThumbsUp
+                className="w-6 h-6 mb-1"
+                style={{ color: highlightColor }}
+              />
+              <span
+                className="text-xs font-medium"
+                style={{ color: highlightColor }}
+              >
+                Vote on Requests
+              </span>
+            </button>
+          </div>
+        </nav>
+      </div>
+    );
+  }
+
   return (
     <div className="frontend-container min-h-screen">
       {/* Thin top bar for user profile and admin */}
-      <div 
+      <div
         className="h-8 border-b border-neon-purple/20 flex justify-between items-center px-4"
         style={{ backgroundColor: navBgColor }}
       >
-        <button 
+        <button
           onClick={() => setIsEditingProfile(true)}
           className="user-profile flex items-center group"
           title="Edit Profile"
         >
-          <img 
-            src={currentUser.photo} 
-            alt={currentUser.name} 
+          <img
+            src={currentUser.photo}
+            alt={currentUser.name}
             className="w-5 h-5 rounded-full object-cover border group-hover:border-opacity-100 border-opacity-75 transition-all mr-2"
             style={{ borderColor: highlightColor }}
             onError={(e) => {
@@ -240,9 +318,9 @@ export function UserFrontend({
           <button
             onClick={onBackendAccess}
             className="text-xs px-2 py-1 rounded-md border"
-            style={{ 
+            style={{
               borderColor: accentColor,
-              color: accentColor 
+              color: accentColor
             }}
           >
             Admin
@@ -251,25 +329,25 @@ export function UserFrontend({
       </div>
 
       {/* Main header with logo */}
-      <header 
+      <header
         className="px-6 pt-10 pb-4 text-center relative border-b border-neon-purple/20"
         style={{ backgroundColor: settings?.frontend_header_bg || '#13091f' }}
       >
-        <Logo 
+        <Logo
           url={logoUrl}
           onClick={onLogoClick}
           className="h-24 mx-auto mb-6"
         />
-        <h1 
+        <h1
           className="text-3xl font-bold mb-2"
           style={{ color: accentColor, textShadow: `0 0 10px ${accentColor}` }}
         >
           {settings?.band_name || 'Band Request Hub'}
         </h1>
-        
+
         {activeSetList && (
           <div className="mb-2 inline-flex items-center py-1 px-4 rounded-full"
-            style={{ 
+            style={{
               backgroundColor: `${accentColor}15`,
               border: `1px solid ${accentColor}30`
             }}
@@ -319,7 +397,7 @@ export function UserFrontend({
                 <div className="text-center py-12">
                   <Music4 className="mx-auto h-12 w-12 text-gray-500 mb-4" />
                   <p className="text-gray-400 text-lg">
-                    {searchTerm.trim() 
+                    {searchTerm.trim()
                       ? `No songs found matching "${searchTerm}"`
                       : 'No songs available'
                     }
@@ -327,19 +405,19 @@ export function UserFrontend({
                 </div>
               )}
             </>
-          ) : (
+          ) : activeTab === 'upvote' ? (
             <UpvoteList
               requests={requests} // Using passed requests (real-time data only)
               onVote={handleVote}
               currentUserId={currentUser?.id || currentUser?.name}
               votingStates={votingStates}
             />
-          )}
+          ) : null}
         </div>
       </main>
 
       {/* Bottom Navigation */}
-      <nav 
+      <nav
         className="fixed bottom-0 left-0 right-0 bg-opacity-95 backdrop-blur-sm border-t border-neon-purple/20 px-6 py-3"
         style={{ backgroundColor: navBgColor }}
       >
@@ -347,36 +425,59 @@ export function UserFrontend({
           <button
             onClick={() => setActiveTab('requests')}
             className={`flex-1 max-w-xs flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
-              activeTab === 'requests' 
-                ? 'bg-neon-purple/20 border border-neon-pink/50' 
+              activeTab === 'requests'
+                ? 'bg-neon-purple/20 border border-neon-pink/50'
                 : ''
             }`}
           >
-            <Music4 
-              className="w-6 h-6 mb-1" 
+            <Music4
+              className="w-6 h-6 mb-1"
               style={{ color: activeTab === 'requests' ? accentColor : highlightColor }}
             />
-            <span 
+            <span
               className="text-xs font-medium"
               style={{ color: activeTab === 'requests' ? accentColor : highlightColor }}
             >
               Request Songs
             </span>
           </button>
-          
+
+          {/* Photo Button - Conditional */}
+          {isPhotoboothEnabled && (
+            <button
+              onClick={() => setActiveTab('photo')}
+              className={`flex-1 max-w-xs flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
+                activeTab === 'photo'
+                  ? 'bg-neon-purple/20 border border-neon-pink/50'
+                  : ''
+              }`}
+            >
+              <Camera
+                className="w-6 h-6 mb-1"
+                style={{ color: activeTab === 'photo' ? accentColor : highlightColor }}
+              />
+              <span
+                className="text-xs font-medium"
+                style={{ color: activeTab === 'photo' ? accentColor : highlightColor }}
+              >
+                Photo
+              </span>
+            </button>
+          )}
+
           <button
             onClick={() => setActiveTab('upvote')}
             className={`flex-1 max-w-xs flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
-              activeTab === 'upvote' 
-                ? 'bg-neon-purple/20 border border-neon-pink/50' 
+              activeTab === 'upvote'
+                ? 'bg-neon-purple/20 border border-neon-pink/50'
                 : ''
             }`}
           >
-            <ThumbsUp 
-              className="w-6 h-6 mb-1" 
+            <ThumbsUp
+              className="w-6 h-6 mb-1"
               style={{ color: activeTab === 'upvote' ? accentColor : highlightColor }}
             />
-            <span 
+            <span
               className="text-xs font-medium"
               style={{ color: activeTab === 'upvote' ? accentColor : highlightColor }}
             >

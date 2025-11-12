@@ -24,6 +24,7 @@ export function SettingsManager() {
 
   // Other settings
   const [showQrCode, setShowQrCode] = useState(settings?.show_qr_code || false);
+  const [photoboothUrl, setPhotoboothUrl] = useState(settings?.photobooth_url || '');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -43,6 +44,7 @@ export function SettingsManager() {
       setNavBgColor(settings.nav_bg_color || '#0f051d');
       setHighlightColor(settings.highlight_color || '#ff00ff');
       setShowQrCode(settings.show_qr_code || false);
+      setPhotoboothUrl(settings.photobooth_url || '');
     }
   }, [settings]);
 
@@ -91,6 +93,7 @@ export function SettingsManager() {
         nav_bg_color: navBgColor,
         highlight_color: highlightColor,
         show_qr_code: showQrCode,
+        photobooth_url: photoboothUrl.trim() || null,
         updated_at: new Date().toISOString()
       });
 
@@ -397,7 +400,7 @@ export function SettingsManager() {
             <QrCode className="w-4 h-4 mr-2" />
             Kiosk Settings
           </h4>
-          
+
           <div className="flex items-center space-x-2">
             <label className="flex items-center cursor-pointer">
               <input
@@ -407,11 +410,11 @@ export function SettingsManager() {
                 className="sr-only"
               />
               <div className={`relative inline-block w-10 h-5 rounded-full transition-colors ${showQrCode ? 'bg-neon-pink' : 'bg-gray-600'}`}>
-                <span 
+                <span
                   className={`inline-block w-4 h-4 transform transition-transform bg-white rounded-full ${
                     showQrCode ? 'translate-x-6' : 'translate-x-1'
-                  }`} 
-                  style={{ 
+                  }`}
+                  style={{
                     top: '0.125rem',
                     position: 'relative'
                   }}
@@ -425,6 +428,26 @@ export function SettingsManager() {
           <p className="text-xs text-gray-400 mt-1 ml-12">
             When enabled, displays a QR code in the top corner of the kiosk view that links to your request page
           </p>
+        </div>
+
+        <div className="border-t border-gray-700 pt-4">
+          <h4 className="text-md font-medium text-white mb-3">Photobooth Integration (Optional)</h4>
+          <div>
+            <label className="block text-sm font-medium text-white mb-2">
+              Photobooth URL
+            </label>
+            <input
+              type="url"
+              value={photoboothUrl}
+              onChange={(e) => setPhotoboothUrl(e.target.value)}
+              className="input-field text-gray-800 w-full"
+              placeholder="https://your-photobooth-app.com/booth/123"
+            />
+            <p className="text-xs text-gray-400 mt-1">
+              Paste your mobile photobooth URL here to enable the Photo feature in the frontend navigation.
+              Leave empty to disable the photo booth.
+            </p>
+          </div>
         </div>
         
         <div className="flex justify-end">

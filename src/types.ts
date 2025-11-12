@@ -67,3 +67,19 @@ export interface QueueStats {
   completedRequests: number;
   averageWaitTime: number;
 }
+
+export interface UiSettings {
+  id: string;
+  band_name: string;
+  primary_color: string;
+  secondary_color: string;
+  frontend_accent_color: string;
+  frontend_bg_color: string;
+  nav_bg_color: string;
+  highlight_color: string;
+  band_logo_url: string | null;
+  show_qr_code: boolean;
+  custom_message: string;
+  ticker_active: boolean;
+  photobooth_url: string | null;
+}

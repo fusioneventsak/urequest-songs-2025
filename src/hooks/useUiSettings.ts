@@ -1,23 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../utils/supabase';
-
-interface UiSettings {
-  id: string;
-  band_logo_url: string | null;
-  band_name: string;
-  primary_color: string;
-  secondary_color: string;
-  frontend_bg_color?: string;
-  frontend_accent_color?: string;
-  frontend_header_bg?: string;
-  frontend_secondary_accent?: string;
-  song_border_color?: string;
-  nav_bg_color?: string;
-  highlight_color?: string;
-  custom_message?: string;
-  ticker_active?: boolean;
-  show_qr_code?: boolean;
-}
+import { UiSettings } from '../types';
 
 // Default logo URL from Fusion Events 
 const DEFAULT_LOGO_URL = "https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png";
@@ -37,7 +20,8 @@ const DEFAULT_SETTINGS: Omit<UiSettings, 'id'> = {
   highlight_color: '#ff00ff',
   custom_message: '',
   ticker_active: false,
-  show_qr_code: false
+  show_qr_code: false,
+  photobooth_url: null
 };
 
 // Function to apply colors instantly without DOM manipulation that breaks scrolling
