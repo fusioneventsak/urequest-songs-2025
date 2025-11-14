@@ -12,9 +12,24 @@ interface SongListProps {
 
 export function SongList({ songs, requests = [], onSongSelect }: SongListProps) {
   const { settings } = useUiSettings();
-  const songBorderColor = settings?.song_border_color || settings?.frontend_accent_color || '#ff00ff';
+  const songCardColor = settings?.song_card_color || settings?.frontend_accent_color || '#ff00ff';
+  const songCardGradient = settings?.song_card_use_gradient
+    ? `linear-gradient(90deg, ${settings.song_card_gradient_start} 0%, ${settings.song_card_gradient_end} 100%)`
+    : null;
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
   const secondaryColor = settings?.frontend_secondary_accent || '#9d00ff';
+
+  // Debug logging - remove after testing
+  useEffect(() => {
+    console.log('🎨 Song Card Debug:', {
+      useGradient: settings?.song_card_use_gradient,
+      gradientStart: settings?.song_card_gradient_start,
+      gradientEnd: settings?.song_card_gradient_end,
+      solidColor: songCardColor,
+      finalGradient: songCardGradient,
+      settingsObject: settings
+    });
+  }, [settings, songCardColor, songCardGradient]);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
 
@@ -69,25 +84,26 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
         const isHot = engagement >= 5;
 
         return (
-        <button
-          key={song.id}
-          onClick={() => onSongSelect(song)}
-          className="w-full text-left relative group"
-        >
-          <div
-            className={`glass-effect rounded-lg p-4 border transition-all duration-300 relative overflow-hidden h-[88px] flex items-center ${
-              isHot ? 'ring-2 ring-red-400/50' : ''
-            }`}
-            style={{
-              borderColor: isHot ? '#EF4444' : songBorderColor,
-              boxShadow: isHot ? `0 0 12px rgba(239, 68, 68, 0.3)` : `0 0 8px ${songBorderColor}50`,
-              background: `linear-gradient(135deg,
-                rgba(255, 255, 255, 0.1),
-                rgba(255, 255, 255, 0.05),
-                rgba(255, 255, 255, 0.02)
-              )`,
-            }}
+          <button
+            key={song.id}
+            onClick={() => onSongSelect(song)}
+            className="w-full text-left relative group"
           >
+            <div
+              className={`glass-effect rounded-lg p-4 transition-all duration-300 relative overflow-hidden h-[88px] flex items-center ${
+                isHot ? 'ring-2 ring-red-400/50' : ''
+              }`}
+              style={{
+                border: songCardGradient && !isHot ? '2px solid transparent' : '1px solid',
+                borderColor: !songCardGradient && !isHot ? accentColor : (isHot ? '#EF4444' : undefined),
+                backgroundImage: songCardGradient && !isHot
+                  ? `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), ${songCardGradient}`
+                  : `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), linear-gradient(to right, ${songCardColor}60, ${songCardColor}10)`,
+                backgroundOrigin: songCardGradient && !isHot ? 'border-box' : undefined,
+                backgroundClip: songCardGradient && !isHot ? 'padding-box, border-box' : undefined,
+                boxShadow: isHot ? `0 0 12px rgba(239, 68, 68, 0.3)` : `0 0 8px ${accentColor}50`,
+              }}
+            >
             {/* Hot gradient overlay */}
             {isHot && (
               <div
@@ -126,7 +142,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
                   src={song.albumArtUrl}
                   alt={`${song.title} album art`}
                   className="w-12 h-12 object-cover rounded-md neon-border flex-shrink-0"
-                  style={{ boxShadow: `0 0 10px ${songBorderColor}30` }}
+                  style={{ boxShadow: `0 0 10px ${songCardColor}30` }}
                   onError={(e) => {
                     e.currentTarget.style.display = 'none';
                     const container = e.currentTarget.parentElement;
@@ -190,7 +206,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
               </div>
             </div>
           </div>
-        </button>
+          </button>
         );
       })}
 

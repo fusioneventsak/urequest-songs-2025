@@ -268,7 +268,7 @@ export function Ticker({ nextSong, customMessage, isActive = true }: TickerProps
         )}
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes ambientFlow {
           0%, 100% { 
             transform: translateX(-5px) scale(1); 

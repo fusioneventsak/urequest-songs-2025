@@ -48,7 +48,14 @@ export function StickyHeader({
                 onClick={onLogoClick}
                 className="h-20"
               />
-              <h1 className="text-white font-bold ml-4 text-2xl sm:text-3xl">
+              <h1
+                className="text-white font-bold ml-4"
+                style={{
+                  fontSize: '2.5rem',
+                  marginTop: '-0.5rem',
+                  lineHeight: '1.2'
+                }}
+              >
                 {settings?.band_name || 'uRequest Live'}
               </h1>
             </div>

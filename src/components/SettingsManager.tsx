@@ -3,6 +3,150 @@ import { Save, Upload, Loader2, QrCode, Palette, RefreshCw } from 'lucide-react'
 import { LogoUploader } from './LogoUploader';
 import { useUiSettings } from '../hooks/useUiSettings';
 
+// Reusable color picker component with gradient support
+interface ColorPickerWithGradientProps {
+  label: string;
+  description: string;
+  solidColor: string;
+  gradientStart: string;
+  gradientEnd: string;
+  useGradient: boolean;
+  onSolidChange: (color: string) => void;
+  onGradientStartChange: (color: string) => void;
+  onGradientEndChange: (color: string) => void;
+  onUseGradientChange: (useGradient: boolean) => void;
+}
+
+function ColorPickerWithGradient({
+  label,
+  description,
+  solidColor,
+  gradientStart,
+  gradientEnd,
+  useGradient,
+  onSolidChange,
+  onGradientStartChange,
+  onGradientEndChange,
+  onUseGradientChange
+}: ColorPickerWithGradientProps) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <h5 className="text-sm font-medium text-white">{label}</h5>
+
+        {/* Gradient Toggle Switch */}
+        <label className="flex items-center cursor-pointer">
+          <span className="mr-3 text-xs font-medium text-gray-300">Use Gradient</span>
+          <input
+            type="checkbox"
+            checked={useGradient}
+            onChange={(e) => onUseGradientChange(e.target.checked)}
+            className="sr-only"
+          />
+          <div className={`relative inline-block w-11 h-6 rounded-full transition-colors ${useGradient ? 'bg-neon-pink' : 'bg-gray-600'}`}>
+            <span
+              className={`inline-block w-5 h-5 transform transition-transform bg-white rounded-full ${
+                useGradient ? 'translate-x-6' : 'translate-x-0.5'
+              }`}
+              style={{
+                top: '0.125rem',
+                position: 'relative'
+              }}
+            />
+          </div>
+        </label>
+      </div>
+
+      {useGradient ? (
+        // Gradient Mode - Show gradient start and end pickers
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {/* Gradient Start */}
+          <div>
+            <label className="block text-xs font-medium text-gray-300 mb-1.5">
+              Gradient Start
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="color"
+                value={gradientStart}
+                onChange={(e) => onGradientStartChange(e.target.value)}
+                className="h-10 w-10 rounded cursor-pointer"
+              />
+              <input
+                type="text"
+                value={gradientStart}
+                onChange={(e) => onGradientStartChange(e.target.value)}
+                className="input-field text-gray-800 flex-1 text-sm"
+                pattern="^#[0-9A-Fa-f]{6}$"
+                placeholder="#ff00ff"
+              />
+            </div>
+          </div>
+
+          {/* Gradient End */}
+          <div>
+            <label className="block text-xs font-medium text-gray-300 mb-1.5">
+              Gradient End
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="color"
+                value={gradientEnd}
+                onChange={(e) => onGradientEndChange(e.target.value)}
+                className="h-10 w-10 rounded cursor-pointer"
+              />
+              <input
+                type="text"
+                value={gradientEnd}
+                onChange={(e) => onGradientEndChange(e.target.value)}
+                className="input-field text-gray-800 flex-1 text-sm"
+                pattern="^#[0-9A-Fa-f]{6}$"
+                placeholder="#9d00ff"
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        // Solid Mode - Show only solid color picker (full width)
+        <div>
+          <label className="block text-xs font-medium text-gray-300 mb-1.5">
+            Solid Color
+          </label>
+          <div className="flex items-center space-x-2">
+            <input
+              type="color"
+              value={solidColor}
+              onChange={(e) => onSolidChange(e.target.value)}
+              className="h-10 w-10 rounded cursor-pointer"
+            />
+            <input
+              type="text"
+              value={solidColor}
+              onChange={(e) => onSolidChange(e.target.value)}
+              className="input-field text-gray-800 flex-1 text-sm"
+              pattern="^#[0-9A-Fa-f]{6}$"
+              placeholder="#ff00ff"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Preview */}
+      <div>
+        <div
+          className="w-full h-12 rounded-lg border border-gray-600"
+          style={{
+            background: useGradient
+              ? `linear-gradient(135deg, ${gradientStart}, ${gradientEnd})`
+              : solidColor
+          }}
+        />
+        <p className="text-xs text-gray-400 mt-1">{description}</p>
+      </div>
+    </div>
+  );
+}
+
 export function SettingsManager() {
   const { settings, loading = false, initialized = true, updateSettings } = useUiSettings();
 
@@ -11,16 +155,52 @@ export function SettingsManager() {
 
   // Basic colors (kept for backward compatibility)
   const [primaryColor, setPrimaryColor] = useState(settings?.primary_color || '#ff00ff');
-  const [secondaryColor, setSecondaryColor] = useState(settings?.secondary_color || '#9d00ff');
+  const [primaryGradientStart, setPrimaryGradientStart] = useState(settings?.primary_gradient_start || '#ff00ff');
+  const [primaryGradientEnd, setPrimaryGradientEnd] = useState(settings?.primary_gradient_end || '#9d00ff');
 
-  // Frontend color controls
+  const [secondaryColor, setSecondaryColor] = useState(settings?.secondary_color || '#9d00ff');
+  const [secondaryGradientStart, setSecondaryGradientStart] = useState(settings?.secondary_gradient_start || '#9d00ff');
+  const [secondaryGradientEnd, setSecondaryGradientEnd] = useState(settings?.secondary_gradient_end || '#6d00af');
+
+  // Frontend color controls with gradients
   const [frontendAccentColor, setFrontendAccentColor] = useState(settings?.frontend_accent_color || '#ff00ff');
+  const [frontendAccentGradientStart, setFrontendAccentGradientStart] = useState(settings?.frontend_accent_gradient_start || '#ff00ff');
+  const [frontendAccentGradientEnd, setFrontendAccentGradientEnd] = useState(settings?.frontend_accent_gradient_end || '#9d00ff');
+
   const [frontendSecondaryAccent, setFrontendSecondaryAccent] = useState(settings?.frontend_secondary_accent || '#9d00ff');
+  const [frontendSecondaryAccentGradientStart, setFrontendSecondaryAccentGradientStart] = useState(settings?.frontend_secondary_accent_gradient_start || '#9d00ff');
+  const [frontendSecondaryAccentGradientEnd, setFrontendSecondaryAccentGradientEnd] = useState(settings?.frontend_secondary_accent_gradient_end || '#6d00af');
+
   const [frontendBgColor, setFrontendBgColor] = useState(settings?.frontend_bg_color || '#13091f');
+  const [frontendBgGradientStart, setFrontendBgGradientStart] = useState(settings?.frontend_bg_gradient_start || '#13091f');
+  const [frontendBgGradientEnd, setFrontendBgGradientEnd] = useState(settings?.frontend_bg_gradient_end || '#0a0513');
+
   const [frontendHeaderBg, setFrontendHeaderBg] = useState(settings?.frontend_header_bg || '#13091f');
+  const [frontendHeaderBgGradientStart, setFrontendHeaderBgGradientStart] = useState(settings?.frontend_header_bg_gradient_start || '#13091f');
+  const [frontendHeaderBgGradientEnd, setFrontendHeaderBgGradientEnd] = useState(settings?.frontend_header_bg_gradient_end || '#0a0513');
+
   const [songBorderColor, setSongBorderColor] = useState(settings?.song_border_color || '#ff00ff');
+  const [songBorderGradientStart, setSongBorderGradientStart] = useState(settings?.song_border_gradient_start || '#ff00ff');
+  const [songBorderGradientEnd, setSongBorderGradientEnd] = useState(settings?.song_border_gradient_end || '#9d00ff');
+
   const [navBgColor, setNavBgColor] = useState(settings?.nav_bg_color || '#0f051d');
+  const [navBgGradientStart, setNavBgGradientStart] = useState(settings?.nav_bg_gradient_start || '#0f051d');
+  const [navBgGradientEnd, setNavBgGradientEnd] = useState(settings?.nav_bg_gradient_end || '#07020f');
+
   const [highlightColor, setHighlightColor] = useState(settings?.highlight_color || '#ff00ff');
+  const [highlightGradientStart, setHighlightGradientStart] = useState(settings?.highlight_gradient_start || '#ff00ff');
+  const [highlightGradientEnd, setHighlightGradientEnd] = useState(settings?.highlight_gradient_end || '#9d00ff');
+
+  // Gradient toggle states
+  const [primaryUseGradient, setPrimaryUseGradient] = useState(settings?.primary_use_gradient || false);
+  const [secondaryUseGradient, setSecondaryUseGradient] = useState(settings?.secondary_use_gradient || false);
+  const [frontendAccentUseGradient, setFrontendAccentUseGradient] = useState(settings?.frontend_accent_use_gradient || false);
+  const [frontendSecondaryAccentUseGradient, setFrontendSecondaryAccentUseGradient] = useState(settings?.frontend_secondary_accent_use_gradient || false);
+  const [frontendBgUseGradient, setFrontendBgUseGradient] = useState(settings?.frontend_bg_use_gradient || false);
+  const [frontendHeaderBgUseGradient, setFrontendHeaderBgUseGradient] = useState(settings?.frontend_header_bg_use_gradient || false);
+  const [songBorderUseGradient, setSongBorderUseGradient] = useState(settings?.song_border_use_gradient || false);
+  const [navBgUseGradient, setNavBgUseGradient] = useState(settings?.nav_bg_use_gradient || false);
+  const [highlightUseGradient, setHighlightUseGradient] = useState(settings?.highlight_use_gradient || false);
 
   // Other settings
   const [showQrCode, setShowQrCode] = useState(settings?.show_qr_code || false);
@@ -34,15 +214,64 @@ export function SettingsManager() {
     if (settings) {
       console.log('Settings updated in SettingsManager:', settings);
       setBandName(settings.band_name || 'uRequest Live');
+
+      // Primary colors
       setPrimaryColor(settings.primary_color || '#ff00ff');
+      setPrimaryGradientStart(settings.primary_gradient_start || '#ff00ff');
+      setPrimaryGradientEnd(settings.primary_gradient_end || '#9d00ff');
+
+      // Secondary colors
       setSecondaryColor(settings.secondary_color || '#9d00ff');
+      setSecondaryGradientStart(settings.secondary_gradient_start || '#9d00ff');
+      setSecondaryGradientEnd(settings.secondary_gradient_end || '#6d00af');
+
+      // Frontend accent colors
       setFrontendAccentColor(settings.frontend_accent_color || '#ff00ff');
+      setFrontendAccentGradientStart(settings.frontend_accent_gradient_start || '#ff00ff');
+      setFrontendAccentGradientEnd(settings.frontend_accent_gradient_end || '#9d00ff');
+
+      // Frontend secondary accent
       setFrontendSecondaryAccent(settings.frontend_secondary_accent || '#9d00ff');
+      setFrontendSecondaryAccentGradientStart(settings.frontend_secondary_accent_gradient_start || '#9d00ff');
+      setFrontendSecondaryAccentGradientEnd(settings.frontend_secondary_accent_gradient_end || '#6d00af');
+
+      // Background colors
       setFrontendBgColor(settings.frontend_bg_color || '#13091f');
+      setFrontendBgGradientStart(settings.frontend_bg_gradient_start || '#13091f');
+      setFrontendBgGradientEnd(settings.frontend_bg_gradient_end || '#0a0513');
+
+      // Header colors
       setFrontendHeaderBg(settings.frontend_header_bg || '#13091f');
+      setFrontendHeaderBgGradientStart(settings.frontend_header_bg_gradient_start || '#13091f');
+      setFrontendHeaderBgGradientEnd(settings.frontend_header_bg_gradient_end || '#0a0513');
+
+      // Song border colors
       setSongBorderColor(settings.song_border_color || '#ff00ff');
+      setSongBorderGradientStart(settings.song_border_gradient_start || '#ff00ff');
+      setSongBorderGradientEnd(settings.song_border_gradient_end || '#9d00ff');
+
+      // Navigation colors
       setNavBgColor(settings.nav_bg_color || '#0f051d');
+      setNavBgGradientStart(settings.nav_bg_gradient_start || '#0f051d');
+      setNavBgGradientEnd(settings.nav_bg_gradient_end || '#07020f');
+
+      // Highlight colors
       setHighlightColor(settings.highlight_color || '#ff00ff');
+      setHighlightGradientStart(settings.highlight_gradient_start || '#ff00ff');
+      setHighlightGradientEnd(settings.highlight_gradient_end || '#9d00ff');
+
+      // Gradient toggle states
+      setPrimaryUseGradient(settings.primary_use_gradient || false);
+      setSecondaryUseGradient(settings.secondary_use_gradient || false);
+      setFrontendAccentUseGradient(settings.frontend_accent_use_gradient || false);
+      setFrontendSecondaryAccentUseGradient(settings.frontend_secondary_accent_use_gradient || false);
+      setFrontendBgUseGradient(settings.frontend_bg_use_gradient || false);
+      setFrontendHeaderBgUseGradient(settings.frontend_header_bg_use_gradient || false);
+      setSongBorderUseGradient(settings.song_border_use_gradient || false);
+      setNavBgUseGradient(settings.nav_bg_use_gradient || false);
+      setHighlightUseGradient(settings.highlight_use_gradient || false);
+
+      // Other settings
       setShowQrCode(settings.show_qr_code || false);
       setPhotoboothUrl(settings.photobooth_url || '');
     }
@@ -83,15 +312,64 @@ export function SettingsManager() {
 
       await updateSettings({
         band_name: bandName.trim(),
+
+        // Primary colors
         primary_color: primaryColor,
+        primary_gradient_start: primaryGradientStart,
+        primary_gradient_end: primaryGradientEnd,
+
+        // Secondary colors
         secondary_color: secondaryColor,
+        secondary_gradient_start: secondaryGradientStart,
+        secondary_gradient_end: secondaryGradientEnd,
+
+        // Frontend accent colors
         frontend_accent_color: frontendAccentColor,
+        frontend_accent_gradient_start: frontendAccentGradientStart,
+        frontend_accent_gradient_end: frontendAccentGradientEnd,
+
+        // Frontend secondary accent
         frontend_secondary_accent: frontendSecondaryAccent,
+        frontend_secondary_accent_gradient_start: frontendSecondaryAccentGradientStart,
+        frontend_secondary_accent_gradient_end: frontendSecondaryAccentGradientEnd,
+
+        // Background colors
         frontend_bg_color: frontendBgColor,
+        frontend_bg_gradient_start: frontendBgGradientStart,
+        frontend_bg_gradient_end: frontendBgGradientEnd,
+
+        // Header colors
         frontend_header_bg: frontendHeaderBg,
+        frontend_header_bg_gradient_start: frontendHeaderBgGradientStart,
+        frontend_header_bg_gradient_end: frontendHeaderBgGradientEnd,
+
+        // Song border colors
         song_border_color: songBorderColor,
+        song_border_gradient_start: songBorderGradientStart,
+        song_border_gradient_end: songBorderGradientEnd,
+
+        // Navigation colors
         nav_bg_color: navBgColor,
+        nav_bg_gradient_start: navBgGradientStart,
+        nav_bg_gradient_end: navBgGradientEnd,
+
+        // Highlight colors
         highlight_color: highlightColor,
+        highlight_gradient_start: highlightGradientStart,
+        highlight_gradient_end: highlightGradientEnd,
+
+        // Gradient toggle states
+        primary_use_gradient: primaryUseGradient,
+        secondary_use_gradient: secondaryUseGradient,
+        frontend_accent_use_gradient: frontendAccentUseGradient,
+        frontend_secondary_accent_use_gradient: frontendSecondaryAccentUseGradient,
+        frontend_bg_use_gradient: frontendBgUseGradient,
+        frontend_header_bg_use_gradient: frontendHeaderBgUseGradient,
+        song_border_use_gradient: songBorderUseGradient,
+        nav_bg_use_gradient: navBgUseGradient,
+        highlight_use_gradient: highlightUseGradient,
+
+        // Other settings
         show_qr_code: showQrCode,
         photobooth_url: photoboothUrl.trim() || null,
         updated_at: new Date().toISOString()
@@ -154,244 +432,136 @@ export function SettingsManager() {
 
         {/* Primary Colors Section */}
         <div className="pb-4 border-b border-gray-700">
-          <h4 className="text-md font-medium text-white mb-3">Primary Brand Colors</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Primary Color
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="h-10 w-10 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={primaryColor}
-                  onChange={(e) => setPrimaryColor(e.target.value)}
-                  className="input-field text-gray-800 flex-1"
-                  pattern="^#[0-9A-Fa-f]{6}$"
-                  placeholder="#ff00ff"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Used for main accent color (legacy support)
-              </p>
-            </div>
+          <h4 className="text-md font-medium text-white mb-4">Primary Brand Colors</h4>
+          <div className="space-y-6">
+            <ColorPickerWithGradient
+              label="Primary Color"
+              description="Used for main accent color (legacy support)"
+              solidColor={primaryColor}
+              gradientStart={primaryGradientStart}
+              gradientEnd={primaryGradientEnd}
+              useGradient={primaryUseGradient}
+              onSolidChange={setPrimaryColor}
+              onGradientStartChange={setPrimaryGradientStart}
+              onGradientEndChange={setPrimaryGradientEnd}
+              onUseGradientChange={setPrimaryUseGradient}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Secondary Color
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={secondaryColor}
-                  onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="h-10 w-10 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={secondaryColor}
-                  onChange={(e) => setSecondaryColor(e.target.value)}
-                  className="input-field text-gray-800 flex-1"
-                  pattern="^#[0-9A-Fa-f]{6}$"
-                  placeholder="#9d00ff"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Used for background gradients (legacy support)
-              </p>
-            </div>
+            <ColorPickerWithGradient
+              label="Secondary Color"
+              description="Used for background gradients (legacy support)"
+              solidColor={secondaryColor}
+              gradientStart={secondaryGradientStart}
+              gradientEnd={secondaryGradientEnd}
+              useGradient={secondaryUseGradient}
+              onSolidChange={setSecondaryColor}
+              onGradientStartChange={setSecondaryGradientStart}
+              onGradientEndChange={setSecondaryGradientEnd}
+              onUseGradientChange={setSecondaryUseGradient}
+            />
           </div>
         </div>
 
         {/* Frontend Colors Section */}
         <div className="pb-4 border-b border-gray-700">
-          <h4 className="text-md font-medium text-white mb-3">Frontend Accent Colors</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Frontend Accent Color
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={frontendAccentColor}
-                  onChange={(e) => setFrontendAccentColor(e.target.value)}
-                  className="h-10 w-10 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={frontendAccentColor}
-                  onChange={(e) => setFrontendAccentColor(e.target.value)}
-                  className="input-field text-gray-800 flex-1"
-                  pattern="^#[0-9A-Fa-f]{6}$"
-                  placeholder="#ff00ff"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Main buttons, REQUEST button, highlights
-              </p>
-            </div>
+          <h4 className="text-md font-medium text-white mb-4">Frontend Accent Colors</h4>
+          <div className="space-y-6">
+            <ColorPickerWithGradient
+              label="Frontend Accent Color"
+              description="Main buttons, REQUEST button, highlights"
+              solidColor={frontendAccentColor}
+              gradientStart={frontendAccentGradientStart}
+              gradientEnd={frontendAccentGradientEnd}
+              useGradient={frontendAccentUseGradient}
+              onSolidChange={setFrontendAccentColor}
+              onGradientStartChange={setFrontendAccentGradientStart}
+              onGradientEndChange={setFrontendAccentGradientEnd}
+              onUseGradientChange={setFrontendAccentUseGradient}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Frontend Secondary Accent
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={frontendSecondaryAccent}
-                  onChange={(e) => setFrontendSecondaryAccent(e.target.value)}
-                  className="h-10 w-10 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={frontendSecondaryAccent}
-                  onChange={(e) => setFrontendSecondaryAccent(e.target.value)}
-                  className="input-field text-gray-800 flex-1"
-                  pattern="^#[0-9A-Fa-f]{6}$"
-                  placeholder="#9d00ff"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Secondary buttons and accents
-              </p>
-            </div>
+            <ColorPickerWithGradient
+              label="Frontend Secondary Accent"
+              description="Secondary buttons and accents"
+              solidColor={frontendSecondaryAccent}
+              gradientStart={frontendSecondaryAccentGradientStart}
+              gradientEnd={frontendSecondaryAccentGradientEnd}
+              useGradient={frontendSecondaryAccentUseGradient}
+              onSolidChange={setFrontendSecondaryAccent}
+              onGradientStartChange={setFrontendSecondaryAccentGradientStart}
+              onGradientEndChange={setFrontendSecondaryAccentGradientEnd}
+              onUseGradientChange={setFrontendSecondaryAccentUseGradient}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Song Border Color
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={songBorderColor}
-                  onChange={(e) => setSongBorderColor(e.target.value)}
-                  className="h-10 w-10 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={songBorderColor}
-                  onChange={(e) => setSongBorderColor(e.target.value)}
-                  className="input-field text-gray-800 flex-1"
-                  pattern="^#[0-9A-Fa-f]{6}$"
-                  placeholder="#ff00ff"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Border and glow around song cards
-              </p>
-            </div>
+            <ColorPickerWithGradient
+              label="Song Border Color"
+              description="Border and glow around song cards"
+              solidColor={songBorderColor}
+              gradientStart={songBorderGradientStart}
+              gradientEnd={songBorderGradientEnd}
+              useGradient={songBorderUseGradient}
+              onSolidChange={setSongBorderColor}
+              onGradientStartChange={setSongBorderGradientStart}
+              onGradientEndChange={setSongBorderGradientEnd}
+              onUseGradientChange={setSongBorderUseGradient}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Highlight Color
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={highlightColor}
-                  onChange={(e) => setHighlightColor(e.target.value)}
-                  className="h-10 w-10 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={highlightColor}
-                  onChange={(e) => setHighlightColor(e.target.value)}
-                  className="input-field text-gray-800 flex-1"
-                  pattern="^#[0-9A-Fa-f]{6}$"
-                  placeholder="#ff00ff"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Special highlights and focus states
-              </p>
-            </div>
+            <ColorPickerWithGradient
+              label="Highlight Color"
+              description="Special highlights and focus states"
+              solidColor={highlightColor}
+              gradientStart={highlightGradientStart}
+              gradientEnd={highlightGradientEnd}
+              useGradient={highlightUseGradient}
+              onSolidChange={setHighlightColor}
+              onGradientStartChange={setHighlightGradientStart}
+              onGradientEndChange={setHighlightGradientEnd}
+              onUseGradientChange={setHighlightUseGradient}
+            />
           </div>
         </div>
 
         {/* Background Colors Section */}
         <div className="pb-4 border-b border-gray-700">
-          <h4 className="text-md font-medium text-white mb-3">Background Colors</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Frontend Background
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={frontendBgColor}
-                  onChange={(e) => setFrontendBgColor(e.target.value)}
-                  className="h-10 w-10 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={frontendBgColor}
-                  onChange={(e) => setFrontendBgColor(e.target.value)}
-                  className="input-field text-gray-800 flex-1"
-                  pattern="^#[0-9A-Fa-f]{6}$"
-                  placeholder="#13091f"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Main page background color
-              </p>
-            </div>
+          <h4 className="text-md font-medium text-white mb-4">Background Colors</h4>
+          <div className="space-y-6">
+            <ColorPickerWithGradient
+              label="Frontend Background"
+              description="Main page background color"
+              solidColor={frontendBgColor}
+              gradientStart={frontendBgGradientStart}
+              gradientEnd={frontendBgGradientEnd}
+              useGradient={frontendBgUseGradient}
+              onSolidChange={setFrontendBgColor}
+              onGradientStartChange={setFrontendBgGradientStart}
+              onGradientEndChange={setFrontendBgGradientEnd}
+              onUseGradientChange={setFrontendBgUseGradient}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Header Background
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={frontendHeaderBg}
-                  onChange={(e) => setFrontendHeaderBg(e.target.value)}
-                  className="h-10 w-10 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={frontendHeaderBg}
-                  onChange={(e) => setFrontendHeaderBg(e.target.value)}
-                  className="input-field text-gray-800 flex-1"
-                  pattern="^#[0-9A-Fa-f]{6}$"
-                  placeholder="#13091f"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Header and navigation background
-              </p>
-            </div>
+            <ColorPickerWithGradient
+              label="Header Background"
+              description="Header and navigation background"
+              solidColor={frontendHeaderBg}
+              gradientStart={frontendHeaderBgGradientStart}
+              gradientEnd={frontendHeaderBgGradientEnd}
+              useGradient={frontendHeaderBgUseGradient}
+              onSolidChange={setFrontendHeaderBg}
+              onGradientStartChange={setFrontendHeaderBgGradientStart}
+              onGradientEndChange={setFrontendHeaderBgGradientEnd}
+              onUseGradientChange={setFrontendHeaderBgUseGradient}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-white mb-2">
-                Navigation Background
-              </label>
-              <div className="flex items-center space-x-2">
-                <input
-                  type="color"
-                  value={navBgColor}
-                  onChange={(e) => setNavBgColor(e.target.value)}
-                  className="h-10 w-10 rounded cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={navBgColor}
-                  onChange={(e) => setNavBgColor(e.target.value)}
-                  className="input-field text-gray-800 flex-1"
-                  pattern="^#[0-9A-Fa-f]{6}$"
-                  placeholder="#0f051d"
-                />
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Bottom navigation bar background
-              </p>
-            </div>
+            <ColorPickerWithGradient
+              label="Navigation Background"
+              description="Bottom navigation bar background"
+              solidColor={navBgColor}
+              gradientStart={navBgGradientStart}
+              gradientEnd={navBgGradientEnd}
+              useGradient={navBgUseGradient}
+              onSolidChange={setNavBgColor}
+              onGradientStartChange={setNavBgGradientStart}
+              onGradientEndChange={setNavBgGradientEnd}
+              onUseGradientChange={setNavBgUseGradient}
+            />
           </div>
         </div>
 

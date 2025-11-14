@@ -14,7 +14,10 @@ interface UpvoteListProps {
 
 export function UpvoteList({ requests, onVote, currentUserId, votingStates = new Set<string>() }: UpvoteListProps) {
   const { settings } = useUiSettings();
-  const songBorderColor = settings?.song_border_color || settings?.frontend_accent_color || '#ff00ff';
+  const songCardColor = settings?.song_card_color || settings?.frontend_accent_color || '#ff00ff';
+  const songCardGradient = settings?.song_card_use_gradient
+    ? `linear-gradient(90deg, ${settings.song_card_gradient_start} 0%, ${settings.song_card_gradient_end} 100%)`
+    : null;
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
 
   // Deduplicate and merge requests for the same song
@@ -124,7 +127,7 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
   return (
     <div className="space-y-4">
       <div className="text-center mb-6">
-        <h2 className="text-2xl font-bold neon-text mb-2">Vote for Your Favorites</h2>
+        <h2 className="text-2xl font-bold mb-2" style={{ color: accentColor }}>Vote for Your Favorites</h2>
         <p className="text-gray-400">Help decide what gets played next!</p>
       </div>
 
@@ -141,22 +144,31 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
           const isHotTrack = totalEngagement >= 5;
           const isTopRequest = index === 0 && !request.isLocked;
 
+          const isSpecialStatus = request.isLocked || isHotTrack || isTopRequest;
+
           return (
             <div
               key={request.id}
-              className={`relative overflow-hidden rounded-xl transition-all duration-300 ${
+              className={`glass-effect rounded-lg p-4 relative overflow-hidden transition-all duration-300 ${
                 request.isLocked
                 ? 'ring-2 ring-yellow-400 shadow-lg shadow-yellow-400/20'
                 : isHotTrack
                 ? 'ring-2 ring-red-400/50 shadow-lg shadow-red-400/10'
                 : isTopRequest
                 ? 'ring-2 ring-green-400/50 shadow-lg shadow-green-400/10'
-                : 'border'
+                : ''
               }`}
               style={{
-                borderColor: request.isLocked ? '#FBBF24' : isHotTrack ? '#EF4444' : isTopRequest ? '#10B981' : songBorderColor,
-                backgroundColor: 'rgba(17, 24, 39, 0.8)',
-                backdropFilter: 'blur(10px)'
+                border: songCardGradient && !isSpecialStatus ? '2px solid transparent' : '1px solid',
+                borderColor: isSpecialStatus ? (request.isLocked ? '#FBBF24' : isHotTrack ? '#EF4444' : '#10B981') : (!songCardGradient ? accentColor : undefined),
+                backgroundImage: songCardGradient && !isSpecialStatus
+                  ? `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), ${songCardGradient}`
+                  : `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), linear-gradient(to right, ${songCardColor}60, ${songCardColor}10)`,
+                backgroundOrigin: songCardGradient && !isSpecialStatus ? 'border-box' : undefined,
+                backgroundClip: songCardGradient && !isSpecialStatus ? 'padding-box, border-box' : undefined,
+                boxShadow: isSpecialStatus
+                  ? (request.isLocked ? `0 0 12px rgba(251, 191, 36, 0.3)` : isHotTrack ? `0 0 12px rgba(239, 68, 68, 0.3)` : `0 0 12px rgba(16, 185, 129, 0.3)`)
+                  : `0 0 8px ${accentColor}50`
               }}
             >
               {/* Gradient overlay for locked/hot tracks */}
@@ -180,8 +192,8 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
                   title={request.title}
                   size="sm"
                   imageStyle={{
-                    boxShadow: `0 0 10px ${songBorderColor}30`,
-                    border: `2px solid ${songBorderColor}40`
+                    boxShadow: `0 0 10px ${songCardColor}30`,
+                    border: `2px solid ${songCardColor}40`
                   }}
                 />
 

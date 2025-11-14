@@ -291,11 +291,18 @@ export function UserFrontend({
   }
 
   return (
-    <div className="frontend-container min-h-screen">
+    <div
+      className="frontend-container min-h-screen"
+      style={{
+        background: settings?.frontend_bg_use_gradient
+          ? `linear-gradient(135deg, ${settings.frontend_bg_gradient_start}, ${settings.frontend_bg_gradient_end})`
+          : (settings?.frontend_bg_color || '#13091f')
+      }}
+    >
       {/* Thin top bar for user profile and admin */}
       <div
-        className="h-8 border-b border-neon-purple/20 flex justify-between items-center px-4"
-        style={{ backgroundColor: navBgColor }}
+        className="h-8 flex justify-between items-center px-4"
+        style={{ backgroundColor: '#000000' }}
       >
         <button
           onClick={() => setIsEditingProfile(true)}
@@ -330,8 +337,12 @@ export function UserFrontend({
 
       {/* Main header with logo */}
       <header
-        className="px-6 pt-8 pb-2 text-center relative border-b border-neon-purple/20"
-        style={{ backgroundColor: settings?.frontend_header_bg || '#13091f' }}
+        className="px-6 pt-8 pb-2 text-center relative"
+        style={{
+          background: settings?.frontend_header_bg_use_gradient
+            ? `linear-gradient(180deg, ${settings.frontend_header_bg_gradient_start}, ${settings.frontend_header_bg_gradient_end})`
+            : (settings?.frontend_header_bg || '#13091f')
+        }}
       >
         <Logo
           url={logoUrl}

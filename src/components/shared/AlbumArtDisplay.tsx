@@ -13,16 +13,17 @@ interface AlbumArtDisplayProps {
   className?: string;
 }
 
-export function AlbumArtDisplay({ 
-  albumArtUrl, 
-  title, 
-  size = 'medium', 
-  imageClassName = '', 
+export function AlbumArtDisplay({
+  albumArtUrl,
+  title,
+  size = 'medium',
+  imageClassName = '',
   imageStyle = {},
   song,
   className = ''
 }: AlbumArtDisplayProps) {
   const [imageLoadError, setImageLoadError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
   const { settings } = useUiSettings();
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
 
@@ -50,6 +51,10 @@ export function AlbumArtDisplay({
     setImageLoadError(true);
   };
 
+  const handleImageLoad = () => {
+    setImageLoaded(true);
+  };
+
   // Show fallback if no URL provided or image failed to load
   if (!displayUrl || imageLoadError) {
     return (
@@ -69,15 +74,37 @@ export function AlbumArtDisplay({
   }
 
   return (
-    <img
-      src={displayUrl}
-      alt={`${displayTitle} album art`}
-      className={`${sizeClasses[size]} object-cover rounded-md flex-shrink-0 ${imageClassName} ${className}`}
-      style={{
-        boxShadow: `0 0 10px ${accentColor}30`,
-        ...imageStyle
-      }}
-      onError={handleImageError}
-    />
+    <div className={`relative ${sizeClasses[size]} ${className}`}>
+      {/* Loading skeleton - shown while image loads */}
+      {!imageLoaded && (
+        <div
+          className={`absolute inset-0 rounded-md bg-neon-purple/20 animate-pulse flex items-center justify-center`}
+          style={{
+            boxShadow: `0 0 10px ${accentColor}30`,
+          }}
+        >
+          <Music4
+            className={`${iconSizes[size]} opacity-30`}
+            style={{ color: accentColor }}
+          />
+        </div>
+      )}
+
+      {/* Actual image with lazy loading */}
+      <img
+        src={displayUrl}
+        alt={`${displayTitle} album art`}
+        className={`${sizeClasses[size]} object-cover rounded-md flex-shrink-0 ${imageClassName} ${
+          imageLoaded ? 'opacity-100' : 'opacity-0'
+        } transition-opacity duration-200`}
+        style={{
+          boxShadow: `0 0 10px ${accentColor}30`,
+          ...imageStyle
+        }}
+        onError={handleImageError}
+        onLoad={handleImageLoad}
+        loading="lazy"
+      />
+    </div>
   );
 }

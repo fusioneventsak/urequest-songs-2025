@@ -209,11 +209,22 @@ export function KioskPage({
   const remainingChars = 100 - message.length;
 
   return (
-    <div className="frontend-container min-h-screen">
+    <div
+      className="frontend-container min-h-screen"
+      style={{
+        background: settings?.frontend_bg_use_gradient
+          ? `linear-gradient(135deg, ${settings.frontend_bg_gradient_start}, ${settings.frontend_bg_gradient_end})`
+          : (settings?.frontend_bg_color || '#13091f')
+      }}
+    >
       {/* Main header with logo */}
       <header
         className="px-6 pt-10 pb-4 text-center relative border-b border-neon-purple/20"
-        style={{ backgroundColor: settings?.frontend_header_bg || '#13091f' }}
+        style={{
+          background: settings?.frontend_header_bg_use_gradient
+            ? `linear-gradient(180deg, ${settings.frontend_header_bg_gradient_start}, ${settings.frontend_header_bg_gradient_end})`
+            : (settings?.frontend_header_bg || '#13091f')
+        }}
       >
         {/* QR Code in top right corner */}
         {settings?.show_qr_code && (

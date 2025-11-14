@@ -4,6 +4,7 @@
 
 /* Default CSS variables - these will be overridden by JS in the head before render */
 :root {
+  /* Solid color variables (for borders, text, shadows) */
   --frontend-header-bg: #13091f;
   --frontend-bg-color: #0f051d;
   --frontend-accent-color: #ff00ff;
@@ -13,11 +14,25 @@
   --song-border-color: #ff00ff;
   --nav-bg-color: #0f051d;
   --highlight-color: #ff00ff;
+
+  /* Background-specific variables (can be gradients) */
+  --frontend-header-bg-bg: #13091f;
+  --frontend-bg-color-bg: #0f051d;
+  --frontend-accent-color-bg: #ff00ff;
+  --frontend-secondary-accent-bg: #9d00ff;
+  --neon-pink-bg: #ff00ff;
+  --neon-purple-bg: #9d00ff;
+  --song-border-color-bg: #ff00ff;
+  --nav-bg-color-bg: #0f051d;
+  --highlight-color-bg: #ff00ff;
 }
 
 /* Base Styles */
 body {
-  @apply bg-darker-purple text-white;
+  @apply text-white;
+  background: var(--frontend-bg-color-bg);
+  background-attachment: fixed;
+  background-size: cover;
   overscroll-behavior-y: none;
   overflow-x: hidden;
   width: 100%;
@@ -49,7 +64,7 @@ html {
 
 /* Frontend Container */
 .frontend-container {
-  background-color: var(--frontend-bg-color);
+  background: transparent;
   min-height: 100vh;
   width: 100%;
   max-width: 100vw;
@@ -66,8 +81,9 @@ html {
 
 /* Frontend Header */
 .frontend-header {
-  background-color: var(--frontend-header-bg) !important;
-  border-bottom: 1px solid color-mix(in srgb, var(--frontend-accent-color) 20%, transparent);
+  background: var(--frontend-header-bg-bg) !important;
+  border-top: none;
+  border-bottom: none;
   width: 100%;
   box-sizing: border-box;
   position: fixed;
@@ -103,7 +119,7 @@ html {
   position: absolute;
   bottom: -2px;
   right: -2px;
-  background-color: var(--highlight-color);
+  background: var(--highlight-color-bg);
   color: white;
   border-radius: 50%;
   width: 16px;
@@ -128,7 +144,8 @@ html {
 
 /* Neon Button */
 .neon-button {
-  @apply px-4 py-2 bg-neon-purple/10 text-white rounded-md;
+  @apply px-4 py-2 text-white rounded-md;
+  background: rgba(157, 0, 255, 0.1);
   border: 1px solid var(--neon-pink);
   color: var(--neon-pink);
   transition: all 0.2s ease;
@@ -138,7 +155,7 @@ html {
 }
 
 .neon-button:hover {
-  background-color: var(--neon-pink);
+  background: var(--neon-pink-bg);
   color: white;
   box-shadow: 0 0 15px color-mix(in srgb, var(--neon-pink) 50%, transparent);
 }
@@ -168,7 +185,7 @@ html {
 
 /* Navigation Styles */
 .nav-header, .nav-bottom {
-  background-color: var(--nav-bg-color);
+  background: var(--nav-bg-color-bg);
   border-color: color-mix(in srgb, var(--frontend-accent-color) 20%, transparent);
 }
 

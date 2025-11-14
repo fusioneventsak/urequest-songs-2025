@@ -13,13 +13,20 @@ export default {
   theme: {
     extend: {
       colors: {
-        'neon-pink': '#ff00ff',
-        'neon-purple': '#9d00ff',
+        'neon-pink': 'var(--neon-pink)',
+        'neon-purple': 'var(--neon-purple)',
         'dark-purple': '#1a0b2e',
         'darker-purple': '#0f051d',
+        'frontend-accent': 'var(--frontend-accent-color)',
+        'frontend-secondary-accent': 'var(--frontend-secondary-accent)',
+        'frontend-bg': 'var(--frontend-bg-color)',
+        'frontend-header-bg': 'var(--frontend-header-bg)',
+        'song-border': 'var(--song-border-color)',
+        'nav-bg': 'var(--nav-bg-color)',
+        'highlight': 'var(--highlight-color)',
       },
       backgroundImage: {
-        'gradient-neon': 'linear-gradient(45deg, #9d00ff, #ff00ff)',
+        'gradient-neon': 'linear-gradient(45deg, var(--neon-purple), var(--neon-pink))',
       },
       screens: {
         'xs': '375px',

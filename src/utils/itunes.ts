@@ -40,9 +40,10 @@ export async function searchITunes(title: string, artist: string): Promise<strin
     const data: iTunesSearchResult = await response.json();
 
     if (data.resultCount > 0) {
-      // Get the high resolution version by replacing '100x100' with '600x600'
-      const artworkUrl = data.results[0].artworkUrl100.replace('100x100', '600x600');
-      
+      // Use 300x300 for better performance - adequate for display sizes (48px-80px)
+      // This reduces image size by ~80% compared to 600x600
+      const artworkUrl = data.results[0].artworkUrl100.replace('100x100', '300x300');
+
       // Verify the URL is valid
       try {
         const artworkResponse = await fetch(artworkUrl, { method: 'HEAD' });

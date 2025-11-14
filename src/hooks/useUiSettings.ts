@@ -10,14 +10,32 @@ const DEFAULT_SETTINGS: Omit<UiSettings, 'id'> = {
   band_logo_url: DEFAULT_LOGO_URL,
   band_name: 'uRequest Live',
   primary_color: '#ff00ff',
+  primary_gradient_start: '#ff00ff',
+  primary_gradient_end: '#9d00ff',
   secondary_color: '#9d00ff',
+  secondary_gradient_start: '#9d00ff',
+  secondary_gradient_end: '#7a00cc',
   frontend_bg_color: '#13091f',
+  frontend_bg_gradient_start: '#13091f',
+  frontend_bg_gradient_end: '#0f051d',
   frontend_accent_color: '#ff00ff',
+  frontend_accent_gradient_start: '#ff00ff',
+  frontend_accent_gradient_end: '#9d00ff',
   frontend_header_bg: '#13091f',
+  frontend_header_bg_gradient_start: '#13091f',
+  frontend_header_bg_gradient_end: '#0f051d',
   frontend_secondary_accent: '#9d00ff',
+  frontend_secondary_accent_gradient_start: '#9d00ff',
+  frontend_secondary_accent_gradient_end: '#7a00cc',
   song_border_color: '#ff00ff',
+  song_border_gradient_start: '#ff00ff',
+  song_border_gradient_end: '#9d00ff',
   nav_bg_color: '#0f051d',
+  nav_bg_gradient_start: '#0f051d',
+  nav_bg_gradient_end: '#0a0310',
   highlight_color: '#ff00ff',
+  highlight_gradient_start: '#ff00ff',
+  highlight_gradient_end: '#9d00ff',
   custom_message: '',
   ticker_active: false,
   show_qr_code: false,
@@ -60,13 +78,45 @@ export function useUiSettings() {
   // All useCallback hooks - fixed order
   const applyCssVariables = useCallback((newSettings: UiSettings) => {
     const colors = {
+      // Solid color variables (always solid, for borders/text/shadows)
       '--frontend-bg-color': newSettings.frontend_bg_color || DEFAULT_SETTINGS.frontend_bg_color,
       '--frontend-accent-color': newSettings.frontend_accent_color || DEFAULT_SETTINGS.frontend_accent_color,
       '--frontend-header-bg': newSettings.frontend_header_bg || DEFAULT_SETTINGS.frontend_header_bg,
       '--frontend-secondary-accent': newSettings.frontend_secondary_accent || DEFAULT_SETTINGS.frontend_secondary_accent,
       '--song-border-color': newSettings.song_border_color || newSettings.frontend_accent_color || DEFAULT_SETTINGS.song_border_color,
       '--neon-pink': newSettings.primary_color || DEFAULT_SETTINGS.primary_color,
-      '--neon-purple': newSettings.secondary_color || DEFAULT_SETTINGS.secondary_color
+      '--neon-purple': newSettings.secondary_color || DEFAULT_SETTINGS.secondary_color,
+      '--nav-bg-color': newSettings.nav_bg_color || DEFAULT_SETTINGS.nav_bg_color,
+      '--highlight-color': newSettings.highlight_color || DEFAULT_SETTINGS.highlight_color,
+
+      // Background-specific variables (can be gradients)
+      '--frontend-bg-color-bg': newSettings.frontend_bg_use_gradient
+        ? `linear-gradient(135deg, ${newSettings.frontend_bg_gradient_start}, ${newSettings.frontend_bg_gradient_end})`
+        : (newSettings.frontend_bg_color || DEFAULT_SETTINGS.frontend_bg_color),
+      '--frontend-accent-color-bg': newSettings.frontend_accent_use_gradient
+        ? `linear-gradient(135deg, ${newSettings.frontend_accent_gradient_start}, ${newSettings.frontend_accent_gradient_end})`
+        : (newSettings.frontend_accent_color || DEFAULT_SETTINGS.frontend_accent_color),
+      '--frontend-header-bg-bg': newSettings.frontend_header_bg_use_gradient
+        ? `linear-gradient(135deg, ${newSettings.frontend_header_bg_gradient_start}, ${newSettings.frontend_header_bg_gradient_end})`
+        : (newSettings.frontend_header_bg || DEFAULT_SETTINGS.frontend_header_bg),
+      '--frontend-secondary-accent-bg': newSettings.frontend_secondary_accent_use_gradient
+        ? `linear-gradient(135deg, ${newSettings.frontend_secondary_accent_gradient_start}, ${newSettings.frontend_secondary_accent_gradient_end})`
+        : (newSettings.frontend_secondary_accent || DEFAULT_SETTINGS.frontend_secondary_accent),
+      '--song-border-color-bg': newSettings.song_border_use_gradient
+        ? `linear-gradient(135deg, ${newSettings.song_border_gradient_start}, ${newSettings.song_border_gradient_end})`
+        : (newSettings.song_border_color || newSettings.frontend_accent_color || DEFAULT_SETTINGS.song_border_color),
+      '--neon-pink-bg': newSettings.primary_use_gradient
+        ? `linear-gradient(135deg, ${newSettings.primary_gradient_start}, ${newSettings.primary_gradient_end})`
+        : (newSettings.primary_color || DEFAULT_SETTINGS.primary_color),
+      '--neon-purple-bg': newSettings.secondary_use_gradient
+        ? `linear-gradient(135deg, ${newSettings.secondary_gradient_start}, ${newSettings.secondary_gradient_end})`
+        : (newSettings.secondary_color || DEFAULT_SETTINGS.secondary_color),
+      '--nav-bg-color-bg': newSettings.nav_bg_use_gradient
+        ? `linear-gradient(135deg, ${newSettings.nav_bg_gradient_start}, ${newSettings.nav_bg_gradient_end})`
+        : (newSettings.nav_bg_color || DEFAULT_SETTINGS.nav_bg_color),
+      '--highlight-color-bg': newSettings.highlight_use_gradient
+        ? `linear-gradient(135deg, ${newSettings.highlight_gradient_start}, ${newSettings.highlight_gradient_end})`
+        : (newSettings.highlight_color || DEFAULT_SETTINGS.highlight_color)
     };
 
     applyColorsInstantly(colors);
@@ -166,38 +216,70 @@ export function useUiSettings() {
 
   const updateSettings = useCallback(async (newSettings: Partial<UiSettings>) => {
     // Apply colors INSTANTLY before any database operation
-    if (newSettings.frontend_bg_color || 
-        newSettings.frontend_accent_color || 
-        newSettings.frontend_header_bg || 
-        newSettings.frontend_secondary_accent ||
-        newSettings.song_border_color ||
-        newSettings.primary_color || 
-        newSettings.secondary_color) {
-      
+    // Check if any color-related settings are being updated
+    const hasColorChanges =
+      newSettings.frontend_bg_color || newSettings.frontend_bg_use_gradient !== undefined ||
+      newSettings.frontend_accent_color || newSettings.frontend_accent_use_gradient !== undefined ||
+      newSettings.frontend_header_bg || newSettings.frontend_header_bg_use_gradient !== undefined ||
+      newSettings.frontend_secondary_accent || newSettings.frontend_secondary_accent_use_gradient !== undefined ||
+      newSettings.song_border_color || newSettings.song_border_use_gradient !== undefined ||
+      newSettings.primary_color || newSettings.primary_use_gradient !== undefined ||
+      newSettings.secondary_color || newSettings.secondary_use_gradient !== undefined ||
+      newSettings.nav_bg_color || newSettings.nav_bg_use_gradient !== undefined ||
+      newSettings.highlight_color || newSettings.highlight_use_gradient !== undefined;
+
+    if (hasColorChanges) {
+      // Get current settings to merge with new settings
+      const { data: currentSettings } = await supabase
+        .from('ui_settings')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const mergedSettings = {
+        ...DEFAULT_SETTINGS,
+        ...(currentSettings && currentSettings.length > 0 ? currentSettings[0] : {}),
+        ...newSettings
+      } as UiSettings;
+
       const colors: Record<string, string> = {};
-      
-      // Build colors object for instant application
-      if (newSettings.frontend_bg_color) {
-        colors['--frontend-bg-color'] = newSettings.frontend_bg_color;
-      }
-      if (newSettings.frontend_accent_color) {
-        colors['--frontend-accent-color'] = newSettings.frontend_accent_color;
-      }
-      if (newSettings.frontend_header_bg) {
-        colors['--frontend-header-bg'] = newSettings.frontend_header_bg;
-      }
-      if (newSettings.frontend_secondary_accent) {
-        colors['--frontend-secondary-accent'] = newSettings.frontend_secondary_accent;
-      }
-      if (newSettings.song_border_color) {
-        colors['--song-border-color'] = newSettings.song_border_color;
-      }
-      if (newSettings.primary_color) {
-        colors['--neon-pink'] = newSettings.primary_color;
-      }
-      if (newSettings.secondary_color) {
-        colors['--neon-purple'] = newSettings.secondary_color;
-      }
+
+      // Build colors object for instant application with gradient support
+      colors['--frontend-bg-color'] = mergedSettings.frontend_bg_use_gradient
+        ? `linear-gradient(135deg, ${mergedSettings.frontend_bg_gradient_start}, ${mergedSettings.frontend_bg_gradient_end})`
+        : mergedSettings.frontend_bg_color;
+
+      colors['--frontend-accent-color'] = mergedSettings.frontend_accent_use_gradient
+        ? `linear-gradient(135deg, ${mergedSettings.frontend_accent_gradient_start}, ${mergedSettings.frontend_accent_gradient_end})`
+        : mergedSettings.frontend_accent_color;
+
+      colors['--frontend-header-bg'] = mergedSettings.frontend_header_bg_use_gradient
+        ? `linear-gradient(135deg, ${mergedSettings.frontend_header_bg_gradient_start}, ${mergedSettings.frontend_header_bg_gradient_end})`
+        : mergedSettings.frontend_header_bg;
+
+      colors['--frontend-secondary-accent'] = mergedSettings.frontend_secondary_accent_use_gradient
+        ? `linear-gradient(135deg, ${mergedSettings.frontend_secondary_accent_gradient_start}, ${mergedSettings.frontend_secondary_accent_gradient_end})`
+        : mergedSettings.frontend_secondary_accent;
+
+      colors['--song-border-color'] = mergedSettings.song_border_use_gradient
+        ? `linear-gradient(135deg, ${mergedSettings.song_border_gradient_start}, ${mergedSettings.song_border_gradient_end})`
+        : mergedSettings.song_border_color;
+
+      colors['--neon-pink'] = mergedSettings.primary_use_gradient
+        ? `linear-gradient(135deg, ${mergedSettings.primary_gradient_start}, ${mergedSettings.primary_gradient_end})`
+        : mergedSettings.primary_color;
+
+      colors['--neon-purple'] = mergedSettings.secondary_use_gradient
+        ? `linear-gradient(135deg, ${mergedSettings.secondary_gradient_start}, ${mergedSettings.secondary_gradient_end})`
+        : mergedSettings.secondary_color;
+
+      colors['--nav-bg-color'] = mergedSettings.nav_bg_use_gradient
+        ? `linear-gradient(135deg, ${mergedSettings.nav_bg_gradient_start}, ${mergedSettings.nav_bg_gradient_end})`
+        : mergedSettings.nav_bg_color;
+
+      colors['--highlight-color'] = mergedSettings.highlight_use_gradient
+        ? `linear-gradient(135deg, ${mergedSettings.highlight_gradient_start}, ${mergedSettings.highlight_gradient_end})`
+        : mergedSettings.highlight_color;
       
       // Apply instantly BEFORE database update
       applyColorsInstantly(colors);
