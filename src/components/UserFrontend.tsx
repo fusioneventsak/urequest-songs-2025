@@ -265,7 +265,7 @@ export function UserFrontend({
                 className="text-xs font-medium"
                 style={{ color: accentColor }}
               >
-                Photo
+                Photobooth
               </span>
             </button>
 
@@ -330,13 +330,13 @@ export function UserFrontend({
 
       {/* Main header with logo */}
       <header
-        className="px-6 pt-10 pb-4 text-center relative border-b border-neon-purple/20"
+        className="px-6 pt-8 pb-2 text-center relative border-b border-neon-purple/20"
         style={{ backgroundColor: settings?.frontend_header_bg || '#13091f' }}
       >
         <Logo
           url={logoUrl}
           onClick={onLogoClick}
-          className="h-24 mx-auto mb-6"
+          className="h-32 mx-auto mb-1"
         />
         <h1
           className="text-3xl font-bold mb-2"
@@ -444,25 +444,43 @@ export function UserFrontend({
 
           {/* Photo Button - Conditional */}
           {isPhotoboothEnabled && (
-            <button
-              onClick={() => setActiveTab('photo')}
-              className={`flex-1 max-w-xs flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
-                activeTab === 'photo'
-                  ? 'bg-neon-purple/20 border border-neon-pink/50'
-                  : ''
-              }`}
-            >
-              <Camera
-                className="w-6 h-6 mb-1"
-                style={{ color: activeTab === 'photo' ? accentColor : highlightColor }}
-              />
-              <span
-                className="text-xs font-medium"
-                style={{ color: activeTab === 'photo' ? accentColor : highlightColor }}
+            <>
+              <button
+                onClick={() => setActiveTab('photo')}
+                className={`flex-1 max-w-xs flex flex-col items-center py-2 px-4 rounded-lg transition-all ${
+                  activeTab === 'photo'
+                    ? 'bg-neon-purple/20 border border-neon-pink/50'
+                    : 'border'
+                }`}
+                style={{
+                  borderColor: accentColor,
+                  backgroundColor: activeTab === 'photo' ? undefined : `${accentColor}10`,
+                  boxShadow: activeTab === 'photo' ? undefined : `0 0 15px ${accentColor}60`,
+                  animation: activeTab === 'photo' ? undefined : 'photoboothPulse 2s ease-in-out infinite'
+                }}
               >
-                Photo
-              </span>
-            </button>
+                <Camera
+                  className="w-6 h-6 mb-1"
+                  style={{ color: accentColor }}
+                />
+                <span
+                  className="text-xs font-medium"
+                  style={{ color: accentColor }}
+                >
+                  Photobooth
+                </span>
+              </button>
+              <style>{`
+                @keyframes photoboothPulse {
+                  0%, 100% {
+                    box-shadow: 0 0 15px ${accentColor}60;
+                  }
+                  50% {
+                    box-shadow: 0 0 25px ${accentColor}, 0 0 35px ${accentColor}80;
+                  }
+                }
+              `}</style>
+            </>
           )}
 
           <button

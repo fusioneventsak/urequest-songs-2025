@@ -25,7 +25,6 @@ export function Logo({ url, isAdmin = false, onClick, className = '' }: LogoProp
         justifyContent: "center",
         position: "relative",
         animation: "logoGlow 2s ease-in-out infinite",
-       marginBottom: "1.5rem", // Added explicit margin to ensure proper spacing
        maxWidth: "100%" // Ensure logo container doesn't overflow
       }}
     >
