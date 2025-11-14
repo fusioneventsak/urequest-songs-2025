@@ -6,6 +6,7 @@ import { SongList } from './SongList';
 import { UpvoteList } from './UpvoteList';
 import { Ticker } from './Ticker';
 import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
+import { BackToTopButton } from './shared/BackToTopButton';
 import { generateDefaultAvatar } from '../utils/photoStorage';
 import { supabase } from '../utils/supabase';
 import { useUiSettings } from '../hooks/useUiSettings';
@@ -243,10 +244,11 @@ export function KioskPage({
 
         <Logo
           url={logoUrl}
-          className="h-24 mx-auto mb-6"
+          className="mx-auto"
+          style={{ height: '103.5px' }}
         />
         <h1
-          className="text-3xl font-bold mb-2"
+          className="text-3xl font-bold mb-2 -mt-20"
           style={{ color: accentColor, textShadow: `0 0 10px ${accentColor}` }}
         >
           {settings?.band_name || 'Band Request Hub'}
@@ -508,6 +510,8 @@ export function KioskPage({
           </div>
         </div>
       )}
+
+      <BackToTopButton size="large" />
     </div>
   );
 }

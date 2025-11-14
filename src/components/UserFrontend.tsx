@@ -7,6 +7,7 @@ import { RequestModal } from './RequestModal';
 import { LandingPage } from './LandingPage';
 import { WelcomeScreen } from './WelcomeScreen';
 import { Ticker } from './Ticker';
+import { BackToTopButton } from './shared/BackToTopButton';
 import { useUiSettings } from '../hooks/useUiSettings';
 import toast from 'react-hot-toast';
 import type { Song, SongRequest, User, RequestFormData } from '../types';
@@ -541,6 +542,8 @@ export function UserFrontend({
           currentUser={currentUser}
         />
       )}
+
+      <BackToTopButton size="medium" positioning="request-page" />
     </div>
   );
 }
