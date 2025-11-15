@@ -87,10 +87,10 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
           : 'linear-gradient(to right, var(--song-card-color-60), var(--song-card-color-10))';
         const cardShadow = isHot ? '0 0 8px rgba(239, 68, 68, 0.3)' : '0 0 6px var(--accent-color-40)';
 
-        // Eager load first 10 images (optimized for older devices), lazy load the rest
-        const loadingStrategy = index < 10 ? 'eager' : 'lazy';
+        // Eager load first 20 images (cover 2 viewports on older devices), lazy load the rest
+        const loadingStrategy = index < 20 ? 'eager' : 'lazy';
         // Sync decoding for eager images (decode immediately), async for lazy (decode on-demand)
-        const decodingStrategy = index < 10 ? 'sync' : 'async';
+        const decodingStrategy = index < 20 ? 'sync' : 'async';
 
         return (
           <button
@@ -111,7 +111,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
             <div className="relative flex items-center gap-3 w-full">
               {song.albumArtUrl ? (
                 <img
-                  src={song.albumArtUrl.replace('/default.jpg', '/w_32,h_32,c_fill,q_30/default.jpg')}
+                  src={song.albumArtUrl.replace('/default.jpg', '/w_24,h_24,c_fill,q_20/default.jpg')}
                   alt=""
                   loading={loadingStrategy}
                   decoding={decodingStrategy}
@@ -125,7 +125,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
                   }}
                   onError={(e) => {
                     // If thumbnail fails, try original URL
-                    if (e.currentTarget.src.includes('w_32')) {
+                    if (e.currentTarget.src.includes('w_24')) {
                       e.currentTarget.src = song.albumArtUrl;
                       return;
                     }
