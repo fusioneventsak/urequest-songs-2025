@@ -55,9 +55,9 @@ export function KioskPage({
     };
   }, []);
 
-  // Preload first 100 album art images and track progress
+  // Preload first 150 album art images and track progress
   useEffect(() => {
-    const imagesToPreload = 100;
+    const imagesToPreload = 150;
     const songsToLoad = songs.slice(0, imagesToPreload);
     let loaded = 0;
 
@@ -302,7 +302,7 @@ export function KioskPage({
 
   // Show loading screen while images preload
   if (!imagesLoaded) {
-    const totalToLoad = Math.min(100, songs.length);
+    const totalToLoad = Math.min(150, songs.length);
     const progress = totalToLoad > 0 ? (loadedCount / totalToLoad) * 100 : 0;
 
     return (
