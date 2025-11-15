@@ -13,6 +13,7 @@ interface SongListProps {
 export function SongList({ songs, requests = [], onSongSelect }: SongListProps) {
   // Note: Colors now use CSS variables set at root for performance
   const containerRef = useRef<HTMLDivElement>(null);
+  const [preloadEnd, setPreloadEnd] = useState(100); // Start with 100, expand as user scrolls
 
   // Set up aggressive lazy loading with large viewport margin for fast scrolling
   useEffect(() => {
@@ -50,12 +51,12 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
     return engagement;
   }, [requests]);
 
-  // Aggressively preload first 100 images using <link rel="preload"> for instant loading
+  // Dynamically preload images based on scroll position
   useEffect(() => {
     const preloadLinks: HTMLLinkElement[] = [];
 
-    // Preload first 100 images (10+ viewports worth) with high priority
-    songs.slice(0, 100).forEach((song) => {
+    // Preload images up to preloadEnd with high priority
+    songs.slice(0, preloadEnd).forEach((song) => {
       if (song.albumArtUrl) {
         const link = document.createElement('link');
         link.rel = 'preload';
@@ -68,7 +69,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
       }
     });
 
-    // Cleanup on unmount
+    // Cleanup on unmount or when preloadEnd changes
     return () => {
       preloadLinks.forEach(link => {
         if (link.parentNode) {
@@ -76,7 +77,36 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
         }
       });
     };
-  }, [songs]);
+  }, [songs, preloadEnd]);
+
+  // Detect scrolling and expand preload range
+  useEffect(() => {
+    let ticking = false;
+
+    const handleScroll = () => {
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollTop = window.scrollY;
+          const windowHeight = window.innerHeight;
+          const scrollableHeight = document.documentElement.scrollHeight;
+
+          // Calculate scroll percentage
+          const scrollPercent = (scrollTop + windowHeight) / scrollableHeight;
+
+          // When user scrolls past 60%, preload next 50 images
+          if (scrollPercent > 0.6 && preloadEnd < songs.length) {
+            setPreloadEnd(prev => Math.min(prev + 50, songs.length));
+          }
+
+          ticking = false;
+        });
+        ticking = true;
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [songs.length, preloadEnd]);
 
 
   return (
@@ -93,12 +123,12 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
           : 'linear-gradient(to right, var(--song-card-color-60), var(--song-card-color-10))';
         const cardShadow = isHot ? '0 0 8px rgba(239, 68, 68, 0.3)' : '0 0 6px var(--accent-color-40)';
 
-        // Eager load first 100 images (cover 10+ viewports on older devices), lazy load the rest
-        const loadingStrategy = index < 100 ? 'eager' : 'lazy';
+        // Dynamically eager load based on scroll position
+        const loadingStrategy = index < preloadEnd ? 'eager' : 'lazy';
         // Sync decoding for eager images (decode immediately), async for lazy (decode on-demand)
-        const decodingStrategy = index < 100 ? 'sync' : 'async';
-        // High priority fetch for first 100 images
-        const fetchPriority = index < 100 ? 'high' : 'low';
+        const decodingStrategy = index < preloadEnd ? 'sync' : 'async';
+        // High priority fetch for preloaded images
+        const fetchPriority = index < preloadEnd ? 'high' : 'low';
 
         return (
           <button

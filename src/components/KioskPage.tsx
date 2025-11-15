@@ -210,22 +210,13 @@ export function KioskPage({
 
   const remainingChars = 100 - message.length;
 
-  // Wait for settings to load before rendering to prevent color flash
-  if (!settings) {
-    return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#13091f' }}>
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    );
-  }
-
   return (
     <div
       className="frontend-container min-h-screen"
       style={{
         background: settings?.frontend_bg_use_gradient
           ? `linear-gradient(135deg, ${settings.frontend_bg_gradient_start}, ${settings.frontend_bg_gradient_end})`
-          : (settings?.frontend_bg_color || '#13091f')
+          : `var(--frontend-bg-color, ${settings?.frontend_bg_color || '#13091f'})`
       }}
     >
       {/* CSS Variables - Set once at root for performance */}
