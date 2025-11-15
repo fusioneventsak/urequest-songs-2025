@@ -111,7 +111,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
             <div className="relative flex items-center gap-3 w-full">
               {song.albumArtUrl ? (
                 <img
-                  src={song.albumArtUrl.replace('/default.jpg', '/w_48,h_48,c_fill,q_50/default.jpg')}
+                  src={song.albumArtUrl.replace('/default.jpg', '/w_32,h_32,c_fill,q_30/default.jpg')}
                   alt=""
                   loading={loadingStrategy}
                   decoding={decodingStrategy}
@@ -125,7 +125,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
                   }}
                   onError={(e) => {
                     // If thumbnail fails, try original URL
-                    if (e.currentTarget.src.includes('w_48')) {
+                    if (e.currentTarget.src.includes('w_32')) {
                       e.currentTarget.src = song.albumArtUrl;
                       return;
                     }
