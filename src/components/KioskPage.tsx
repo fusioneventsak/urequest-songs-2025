@@ -210,6 +210,15 @@ export function KioskPage({
 
   const remainingChars = 100 - message.length;
 
+  // Wait for settings to load before rendering to prevent color flash
+  if (!settings) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#13091f' }}>
+        <div className="text-white text-xl">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div
       className="frontend-container min-h-screen"
