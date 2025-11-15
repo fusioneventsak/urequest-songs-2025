@@ -51,17 +51,17 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
     return engagement;
   }, [requests]);
 
-  // Aggressively preload first 50 images using <link rel="preload"> for instant loading
+  // Aggressively preload first 75 images using <link rel="preload"> for instant loading
   useEffect(() => {
     const preloadLinks: HTMLLinkElement[] = [];
 
-    // Preload first 50 images (5 viewports worth) with high priority
-    songs.slice(0, 50).forEach((song) => {
+    // Preload first 75 images (7-8 viewports worth) with high priority
+    songs.slice(0, 75).forEach((song) => {
       if (song.albumArtUrl) {
         const link = document.createElement('link');
         link.rel = 'preload';
         link.as = 'image';
-        link.href = song.albumArtUrl.replace('/default.jpg', '/w_24,h_24,c_fill,q_20/default.jpg');
+        link.href = song.albumArtUrl.replace('/default.jpg', '/w_20,h_20,c_fill,q_10/default.jpg');
         // High priority hint for browser
         link.setAttribute('fetchpriority', 'high');
         document.head.appendChild(link);
@@ -115,12 +115,12 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
           : 'linear-gradient(to right, var(--song-card-color-60), var(--song-card-color-10))';
         const cardShadow = isHot ? '0 0 8px rgba(239, 68, 68, 0.3)' : '0 0 6px var(--accent-color-40)';
 
-        // Eager load first 50 images (cover 5 viewports on older devices), lazy load the rest
-        const loadingStrategy = index < 50 ? 'eager' : 'lazy';
+        // Eager load first 75 images (cover 7-8 viewports on older devices), lazy load the rest
+        const loadingStrategy = index < 75 ? 'eager' : 'lazy';
         // Sync decoding for eager images (decode immediately), async for lazy (decode on-demand)
-        const decodingStrategy = index < 50 ? 'sync' : 'async';
-        // High priority fetch for first 50 images
-        const fetchPriority = index < 50 ? 'high' : 'low';
+        const decodingStrategy = index < 75 ? 'sync' : 'async';
+        // High priority fetch for first 75 images
+        const fetchPriority = index < 75 ? 'high' : 'low';
 
         return (
           <button
@@ -141,7 +141,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
             <div className="relative flex items-center gap-3 w-full">
               {song.albumArtUrl ? (
                 <img
-                  src={song.albumArtUrl.replace('/default.jpg', '/w_24,h_24,c_fill,q_20/default.jpg')}
+                  src={song.albumArtUrl.replace('/default.jpg', '/w_20,h_20,c_fill,q_10/default.jpg')}
                   alt=""
                   loading={loadingStrategy}
                   decoding={decodingStrategy}
@@ -156,7 +156,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
                   }}
                   onError={(e) => {
                     // If thumbnail fails, try original URL
-                    if (e.currentTarget.src.includes('w_24')) {
+                    if (e.currentTarget.src.includes('w_20')) {
                       e.currentTarget.src = song.albumArtUrl;
                       return;
                     }
