@@ -28,6 +28,20 @@ import { KioskPage } from './components/KioskPage';
 import toast from 'react-hot-toast';
 
 const DEFAULT_BAND_LOGO = "https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png";
+
+// Polyfill for crypto.randomUUID() for older Safari/iOS versions
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+
+  // Fallback for older browsers (Safari < 15.4, iOS < 15.4)
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+}
 const BACKEND_PATH = "backend";
 const KIOSK_PATH = "kiosk";
 const MAX_PHOTO_SIZE = 250 * 1024; // 250KB limit for database storage
@@ -303,7 +317,7 @@ function App() {
         throw new Error('Please enter your name to submit a request');
       }
 
-      const requestId = crypto.randomUUID();
+      const requestId = generateUUID();
 
       const newRequest = {
         id: requestId,
@@ -314,7 +328,7 @@ function App() {
         isPlayed: false,
         createdAt: new Date().toISOString(),
         requesters: [{
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           requestId: requestId,
           name: requesterName,
           photo: requesterPhoto || '',
@@ -341,7 +355,7 @@ function App() {
       const { error: requesterError } = await supabase
         .from('requesters')
         .insert([{
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           request_id: requestId,
           name: requesterName,
           photo: requesterPhoto || '',
@@ -654,7 +668,7 @@ function App() {
 
     try {
       console.log('📝 Creating new set list:', setList.name);
-      const setListId = crypto.randomUUID();
+      const setListId = generateUUID();
 
       // Insert set list
       const { error: setListError } = await supabase
