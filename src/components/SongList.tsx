@@ -13,7 +13,6 @@ interface SongListProps {
 export function SongList({ songs, requests = [], onSongSelect }: SongListProps) {
   // Note: Colors now use CSS variables set at root for performance
   const containerRef = useRef<HTMLDivElement>(null);
-  const [scrollProgress, setScrollProgress] = useState(0);
 
   // Set up aggressive lazy loading with large viewport margin for fast scrolling
   useEffect(() => {
@@ -79,27 +78,6 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
     };
   }, [songs]);
 
-  useEffect(() => {
-    let ticking = false;
-
-    const handleScroll = () => {
-      if (!ticking) {
-        window.requestAnimationFrame(() => {
-          if (containerRef.current) {
-            const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-            const currentScroll = window.scrollY;
-            const progress = (currentScroll / maxScroll) * 100;
-            setScrollProgress(progress);
-          }
-          ticking = false;
-        });
-        ticking = true;
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   return (
     <div ref={containerRef} className="w-full">
