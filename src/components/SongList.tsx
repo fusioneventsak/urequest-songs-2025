@@ -126,7 +126,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
           <button
             key={index}
             onClick={() => onSongSelect(song)}
-            className="w-full text-left relative group mb-1.5 px-3"
+            className="w-full text-left relative group mb-1.5"
           >
           <div
             className="glass-effect rounded-lg p-3 relative overflow-hidden flex items-center"
