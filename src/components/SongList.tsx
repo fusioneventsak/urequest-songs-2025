@@ -14,7 +14,8 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
   // Note: Colors now use CSS variables set at root for performance
   const containerRef = useRef<HTMLDivElement>(null);
   const [preloadEnd, setPreloadEnd] = useState(100); // Start with 100, expand as user scrolls
-  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 30 }); // Only render 30 cards at a time
+  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 50 }); // Render more cards for smoother scrolling
+  const itemHeights = useRef<number[]>([]);
 
   // Set up aggressive lazy loading with large viewport margin for fast scrolling
   useEffect(() => {
@@ -83,8 +84,8 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
   // Detect scrolling and update visible range + expand preload range
   useEffect(() => {
     let ticking = false;
-    const CARD_HEIGHT = 78; // Approximate height of each card (72px min-height + 6px margin)
-    const BUFFER_CARDS = 10; // Render 10 extra cards above and below viewport
+    const CARD_HEIGHT = 84; // More accurate: 72px min-height + 6px margin + padding
+    const BUFFER_CARDS = 20; // Large buffer for smoother scrolling
 
     const handleScroll = () => {
       if (!ticking) {
@@ -93,15 +94,21 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
           const windowHeight = window.innerHeight;
           const scrollableHeight = document.documentElement.scrollHeight;
 
-          // Calculate which cards are visible
+          // Calculate which cards are visible with generous buffer
           const firstVisibleCard = Math.floor(scrollTop / CARD_HEIGHT);
           const lastVisibleCard = Math.ceil((scrollTop + windowHeight) / CARD_HEIGHT);
 
-          // Add buffer cards above and below
+          // Add large buffer to prevent abrupt changes
           const start = Math.max(0, firstVisibleCard - BUFFER_CARDS);
           const end = Math.min(songs.length, lastVisibleCard + BUFFER_CARDS);
 
-          setVisibleRange({ start, end });
+          // Only update if the range changed significantly (prevents jitter)
+          setVisibleRange(prev => {
+            if (Math.abs(prev.start - start) > 5 || Math.abs(prev.end - end) > 5) {
+              return { start, end };
+            }
+            return prev;
+          });
 
           // Calculate scroll percentage for preloading
           const scrollPercent = (scrollTop + windowHeight) / scrollableHeight;
@@ -125,7 +132,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
   }, [songs.length, preloadEnd]);
 
 
-  const CARD_HEIGHT = 78; // Must match the height calculation in scroll handler
+  const CARD_HEIGHT = 84; // Must match the height calculation in scroll handler
 
   // Create spacers for virtual scrolling
   const topSpacer = visibleRange.start * CARD_HEIGHT;
