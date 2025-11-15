@@ -37,6 +37,8 @@ export function KioskPage({
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [activeTab, setActiveTab] = useState<'requests' | 'upvote'>('requests');
+  const [imagesLoaded, setImagesLoaded] = useState(false);
+  const [loadedCount, setLoadedCount] = useState(0);
 
   // Local state for UI feedback only
   const [submittingStates, setSubmittingStates] = useState<Set<string>>(new Set());
@@ -52,6 +54,94 @@ export function KioskPage({
       mountedRef.current = false;
     };
   }, []);
+
+  // Preload first 100 album art images and track progress
+  useEffect(() => {
+    const imagesToPreload = 100;
+    const songsToLoad = songs.slice(0, imagesToPreload);
+    let loaded = 0;
+
+    // Check if images are already cached
+    const checkCache = async () => {
+      if ('caches' in window) {
+        try {
+          const cache = await caches.open('album-art-v1');
+          const cachedUrls = await Promise.all(
+            songsToLoad.map(song =>
+              song.albumArtUrl
+                ? cache.match(song.albumArtUrl.replace('/default.jpg', '/w_16,h_16,c_fill,q_5/default.jpg'))
+                : Promise.resolve(undefined)
+            )
+          );
+          const cachedCount = cachedUrls.filter(Boolean).length;
+
+          if (cachedCount === songsToLoad.length) {
+            console.log('✅ All images already cached, skipping preload');
+            setImagesLoaded(true);
+            setLoadedCount(songsToLoad.length);
+            return true;
+          }
+        } catch (e) {
+          console.warn('Cache check failed:', e);
+        }
+      }
+      return false;
+    };
+
+    const preloadImages = async () => {
+      // Check cache first
+      const allCached = await checkCache();
+      if (allCached) return;
+
+      console.log(`🎨 Preloading ${songsToLoad.length} album art images...`);
+
+      const promises = songsToLoad.map((song, index) => {
+        if (!song.albumArtUrl) {
+          loaded++;
+          setLoadedCount(loaded);
+          return Promise.resolve();
+        }
+
+        return new Promise<void>((resolve) => {
+          const img = new Image();
+          const url = song.albumArtUrl.replace('/default.jpg', '/w_16,h_16,c_fill,q_5/default.jpg');
+
+          img.onload = async () => {
+            loaded++;
+            setLoadedCount(loaded);
+
+            // Cache the image
+            if ('caches' in window) {
+              try {
+                const cache = await caches.open('album-art-v1');
+                const response = await fetch(url);
+                await cache.put(url, response);
+              } catch (e) {
+                console.warn('Failed to cache image:', e);
+              }
+            }
+
+            resolve();
+          };
+
+          img.onerror = () => {
+            loaded++;
+            setLoadedCount(loaded);
+            console.warn(`Failed to load image ${index}:`, url);
+            resolve(); // Don't block on errors
+          };
+
+          img.src = url;
+        });
+      });
+
+      await Promise.all(promises);
+      setImagesLoaded(true);
+      console.log(`✅ Preloaded ${loaded}/${songsToLoad.length} images`);
+    };
+
+    preloadImages();
+  }, [songs]);
 
   // Get colors from settings
   const navBgColor = settings?.nav_bg_color || '#0f051d';
@@ -209,6 +299,40 @@ export function KioskPage({
   }, [requests, optimisticVotes, votingStates]);
 
   const remainingChars = 100 - message.length;
+
+  // Show loading screen while images preload
+  if (!imagesLoaded) {
+    const totalToLoad = Math.min(100, songs.length);
+    const progress = totalToLoad > 0 ? (loadedCount / totalToLoad) * 100 : 0;
+
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background: settings?.frontend_bg_use_gradient
+            ? `linear-gradient(135deg, ${settings.frontend_bg_gradient_start}, ${settings.frontend_bg_gradient_end})`
+            : `var(--frontend-bg-color, ${settings?.frontend_bg_color || '#13091f'})`
+        }}
+      >
+        <div className="flex flex-col items-center gap-6">
+          <Logo url={logoUrl} className="w-64" />
+          <div className="text-white text-2xl font-bold">Loading Songs...</div>
+          <div className="w-64 h-2 bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-gradient-to-r transition-all duration-300"
+              style={{
+                width: `${progress}%`,
+                backgroundImage: `linear-gradient(90deg, ${accentColor}, ${settings?.frontend_secondary_accent || '#9d00ff'})`
+              }}
+            />
+          </div>
+          <div className="text-gray-400 text-lg">
+            {loadedCount} / {totalToLoad} images loaded
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
