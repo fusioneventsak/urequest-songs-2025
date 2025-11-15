@@ -300,6 +300,26 @@ export function UserFrontend({
           : (settings?.frontend_bg_color || '#13091f')
       }}
     >
+      {/* CSS Variables - Set once at root for performance */}
+      <style>{`
+        :root {
+          --accent-color: ${accentColor};
+          --song-card-color: ${settings?.song_card_color || settings?.frontend_accent_color || '#ff00ff'};
+          --secondary-color: ${settings?.frontend_secondary_accent || '#9d00ff'};
+          --nav-bg-color: ${navBgColor};
+          --highlight-color: ${highlightColor};
+          /* Pre-calculated opacity variants for performance */
+          --accent-color-dd: ${accentColor}dd;
+          --accent-color-60: ${accentColor}99;
+          --accent-color-40: ${accentColor}66;
+          --accent-color-20: ${accentColor}33;
+          --accent-color-10: ${accentColor}1a;
+          --song-card-color-60: ${settings?.song_card_color || settings?.frontend_accent_color || '#ff00ff'}99;
+          --song-card-color-30: ${settings?.song_card_color || settings?.frontend_accent_color || '#ff00ff'}4d;
+          --song-card-color-10: ${settings?.song_card_color || settings?.frontend_accent_color || '#ff00ff'}1a;
+        }
+      `}</style>
+
       {/* Thin top bar for user profile and admin */}
       <div
         className="h-8 flex justify-between items-center px-4"
