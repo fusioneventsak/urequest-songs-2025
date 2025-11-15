@@ -126,7 +126,7 @@ interface SongListProps {
 export function SongList({ songs, requests = [], onSongSelect }: SongListProps) {
   // Note: Colors now use CSS variables set at root for performance
   const containerRef = useRef<HTMLDivElement>(null);
-  const [preloadEnd, setPreloadEnd] = useState(100); // Start with 100, expand as user scrolls
+  const [preloadEnd, setPreloadEnd] = useState(110); // Start with 110 (100 + 10 below fold), expand as user scrolls
 
   // Set up aggressive lazy loading with large viewport margin for fast scrolling
   useEffect(() => {
