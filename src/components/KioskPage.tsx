@@ -74,7 +74,7 @@ export function KioskPage({
     return activeSetList?.songs || songs;
   }, [activeSetList, songs]);
 
-  // Filter songs based on search
+  // Filter songs based on search - MUST come before useEffect that uses it
   const filteredSongs = useMemo(() => {
     if (!searchTerm.trim()) return availableSongs;
 
@@ -87,6 +87,7 @@ export function KioskPage({
       );
     });
   }, [availableSongs, searchTerm]);
+
 
   // Create merged requests with optimistic votes
   const mergedRequests = useMemo(() => {
@@ -218,6 +219,26 @@ export function KioskPage({
           : (settings?.frontend_bg_color || '#13091f')
       }}
     >
+      {/* CSS Variables - Set once at root for performance */}
+      <style>{`
+        :root {
+          --accent-color: ${accentColor};
+          --song-card-color: ${settings?.song_card_color || settings?.frontend_accent_color || '#ff00ff'};
+          --secondary-color: ${settings?.frontend_secondary_accent || '#9d00ff'};
+          --nav-bg-color: ${navBgColor};
+          --highlight-color: ${highlightColor};
+          /* Pre-calculated opacity variants for performance */
+          --accent-color-dd: ${accentColor}dd;
+          --accent-color-60: ${accentColor}99;
+          --accent-color-40: ${accentColor}66;
+          --accent-color-20: ${accentColor}33;
+          --accent-color-10: ${accentColor}1a;
+          --song-card-color-60: ${settings?.song_card_color || settings?.frontend_accent_color || '#ff00ff'}99;
+          --song-card-color-30: ${settings?.song_card_color || settings?.frontend_accent_color || '#ff00ff'}4d;
+          --song-card-color-10: ${settings?.song_card_color || settings?.frontend_accent_color || '#ff00ff'}1a;
+        }
+      `}</style>
+
       {/* Main header with logo */}
       <header
         className="px-6 pt-10 pb-4 text-center relative border-b border-neon-purple/20"
