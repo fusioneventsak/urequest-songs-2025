@@ -74,36 +74,33 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
   }, []);
 
   return (
-    <div 
-      ref={containerRef}
-      className="grid gap-2 w-full relative p-4"
-    >
-      {songs.map((song) => {
+    <div ref={containerRef} className="w-full">
+      {songs.map((song, index) => {
         const songKey = `${song.title.toLowerCase().trim()}|${song.artist.toLowerCase().trim()}`;
         const engagement = songEngagement.get(songKey) || 0;
         const isHot = engagement >= 5;
 
         return (
           <button
-            key={song.id}
+            key={index}
             onClick={() => onSongSelect(song)}
-            className="w-full text-left relative group"
+            className="w-full text-left relative group mb-2 px-4"
           >
-            <div
-              className={`glass-effect rounded-lg p-4 transition-all duration-300 relative overflow-hidden h-[88px] flex items-center ${
-                isHot ? 'ring-2 ring-red-400/50' : ''
-              }`}
-              style={{
-                border: songCardGradient && !isHot ? '2px solid transparent' : '1px solid',
-                borderColor: !songCardGradient && !isHot ? accentColor : (isHot ? '#EF4444' : undefined),
-                backgroundImage: songCardGradient && !isHot
-                  ? `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), ${songCardGradient}`
-                  : `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), linear-gradient(to right, ${songCardColor}60, ${songCardColor}10)`,
-                backgroundOrigin: songCardGradient && !isHot ? 'border-box' : undefined,
-                backgroundClip: songCardGradient && !isHot ? 'padding-box, border-box' : undefined,
-                boxShadow: isHot ? `0 0 12px rgba(239, 68, 68, 0.3)` : `0 0 8px ${accentColor}50`,
-              }}
-            >
+          <div
+            className={`glass-effect rounded-lg p-4 transition-all duration-300 relative overflow-hidden h-[88px] flex items-center ${
+              isHot ? 'ring-2 ring-red-400/50' : ''
+            }`}
+            style={{
+              border: songCardGradient && !isHot ? '2px solid transparent' : '1px solid',
+              borderColor: !songCardGradient && !isHot ? accentColor : (isHot ? '#EF4444' : undefined),
+              backgroundImage: songCardGradient && !isHot
+                ? `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), ${songCardGradient}`
+                : `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), linear-gradient(to right, ${songCardColor}60, ${songCardColor}10)`,
+              backgroundOrigin: songCardGradient && !isHot ? 'border-box' : undefined,
+              backgroundClip: songCardGradient && !isHot ? 'padding-box, border-box' : undefined,
+              boxShadow: isHot ? `0 0 12px rgba(239, 68, 68, 0.3)` : `0 0 8px ${accentColor}50`,
+            }}
+          >
             {/* Hot gradient overlay */}
             {isHot && (
               <div
@@ -141,6 +138,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
                 <img
                   src={song.albumArtUrl}
                   alt={`${song.title} album art`}
+                  loading="lazy"
                   className="w-12 h-12 object-cover rounded-md neon-border flex-shrink-0"
                   style={{ boxShadow: `0 0 10px ${songCardColor}30` }}
                   onError={(e) => {
@@ -206,7 +204,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
               </div>
             </div>
           </div>
-          </button>
+        </button>
         );
       })}
 

@@ -292,7 +292,8 @@ export function KioskPage({
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search songs by title, artist, or genre..."
-                  className="w-full pl-4 pr-4 py-3 bg-neon-purple/10 border border-neon-purple/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-neon-pink"
+                  className="w-full pl-4 pr-4 py-3 bg-neon-purple/10 border border-neon-purple/20 rounded-lg placeholder-gray-400 focus:outline-none focus:border-neon-pink"
+                  style={{ color: '#1a1a1a' }}
                 />
               </div>
 
