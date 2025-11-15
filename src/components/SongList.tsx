@@ -14,6 +14,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
   // Note: Colors now use CSS variables set at root for performance
   const containerRef = useRef<HTMLDivElement>(null);
   const [preloadEnd, setPreloadEnd] = useState(100); // Start with 100, expand as user scrolls
+  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 30 }); // Only render 30 cards at a time
 
   // Set up aggressive lazy loading with large viewport margin for fast scrolling
   useEffect(() => {
@@ -79,9 +80,11 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
     };
   }, [songs, preloadEnd]);
 
-  // Detect scrolling and expand preload range
+  // Detect scrolling and update visible range + expand preload range
   useEffect(() => {
     let ticking = false;
+    const CARD_HEIGHT = 78; // Approximate height of each card (72px min-height + 6px margin)
+    const BUFFER_CARDS = 10; // Render 10 extra cards above and below viewport
 
     const handleScroll = () => {
       if (!ticking) {
@@ -90,7 +93,17 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
           const windowHeight = window.innerHeight;
           const scrollableHeight = document.documentElement.scrollHeight;
 
-          // Calculate scroll percentage
+          // Calculate which cards are visible
+          const firstVisibleCard = Math.floor(scrollTop / CARD_HEIGHT);
+          const lastVisibleCard = Math.ceil((scrollTop + windowHeight) / CARD_HEIGHT);
+
+          // Add buffer cards above and below
+          const start = Math.max(0, firstVisibleCard - BUFFER_CARDS);
+          const end = Math.min(songs.length, lastVisibleCard + BUFFER_CARDS);
+
+          setVisibleRange({ start, end });
+
+          // Calculate scroll percentage for preloading
           const scrollPercent = (scrollTop + windowHeight) / scrollableHeight;
 
           // When user scrolls past 60%, preload next 50 images
@@ -104,14 +117,28 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
       }
     };
 
+    // Run once on mount to set initial visible range
+    handleScroll();
+
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [songs.length, preloadEnd]);
 
 
+  const CARD_HEIGHT = 78; // Must match the height calculation in scroll handler
+
+  // Create spacers for virtual scrolling
+  const topSpacer = visibleRange.start * CARD_HEIGHT;
+  const bottomSpacer = (songs.length - visibleRange.end) * CARD_HEIGHT;
+  const visibleSongs = songs.slice(visibleRange.start, visibleRange.end);
+
   return (
     <div ref={containerRef} className="w-full">
-      {songs.map((song, index) => {
+      {/* Top spacer to maintain scroll position */}
+      {topSpacer > 0 && <div style={{ height: `${topSpacer}px` }} />}
+
+      {visibleSongs.map((song, index) => {
+        const actualIndex = visibleRange.start + index;
         const songKey = `${song.title.toLowerCase().trim()}|${song.artist.toLowerCase().trim()}`;
         const engagement = songEngagement.get(songKey) || 0;
         const isHot = engagement >= 5;
@@ -124,15 +151,15 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
         const cardShadow = isHot ? '0 0 8px rgba(239, 68, 68, 0.3)' : '0 0 6px var(--accent-color-40)';
 
         // Dynamically eager load based on scroll position
-        const loadingStrategy = index < preloadEnd ? 'eager' : 'lazy';
+        const loadingStrategy = actualIndex < preloadEnd ? 'eager' : 'lazy';
         // Sync decoding for eager images (decode immediately), async for lazy (decode on-demand)
-        const decodingStrategy = index < preloadEnd ? 'sync' : 'async';
+        const decodingStrategy = actualIndex < preloadEnd ? 'sync' : 'async';
         // High priority fetch for preloaded images
-        const fetchPriority = index < preloadEnd ? 'high' : 'low';
+        const fetchPriority = actualIndex < preloadEnd ? 'high' : 'low';
 
         return (
           <button
-            key={index}
+            key={actualIndex}
             onClick={() => onSongSelect(song)}
             className="w-full text-left relative group mb-1.5"
           >
@@ -234,6 +261,9 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
         </button>
         );
       })}
+
+      {/* Bottom spacer to maintain scroll position */}
+      {bottomSpacer > 0 && <div style={{ height: `${bottomSpacer}px` }} />}
 
       {songs.length === 0 && (
         <div className="text-center p-8 text-gray-400">
