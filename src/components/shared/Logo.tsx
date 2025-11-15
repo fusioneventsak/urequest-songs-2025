@@ -24,7 +24,6 @@ export function Logo({ url, isAdmin = false, onClick, className = '' }: LogoProp
         alignItems: "center",
         justifyContent: "center",
         position: "relative",
-        animation: "logoGlow 2s ease-in-out infinite",
        maxWidth: "100%" // Ensure logo container doesn't overflow
       }}
     >
@@ -46,47 +45,24 @@ export function Logo({ url, isAdmin = false, onClick, className = '' }: LogoProp
         onError={handleError}
       />
       
-      {/* Glow effect layers */}
-      <div 
+      {/* Static glow effect layers (no animation for battery savings) */}
+      <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle, ${accentColor}20 0%, transparent 70%)`,
+          background: `radial-gradient(circle, ${accentColor}30 0%, transparent 70%)`,
           filter: "blur(10px)",
-          animation: "logoPulse 2s ease-in-out infinite",
+          opacity: 0.7,
         }}
       />
-      <div 
+      <div
         className="absolute inset-0"
         style={{
-          background: `radial-gradient(circle, ${accentColor}10 0%, transparent 60%)`,
+          background: `radial-gradient(circle, ${accentColor}15 0%, transparent 60%)`,
           filter: "blur(20px)",
-          animation: "logoPulse 2s ease-in-out infinite",
-          animationDelay: "0.5s",
+          opacity: 0.7,
         }}
       />
 
-      <style 
-        >{`
-        @keyframes logoPulse {
-          0%, 100% {
-            opacity: 0.5;
-            transform: scale(1);
-          }
-          50% {
-            opacity: 1;
-            transform: scale(1.1);
-          }
-        }
-
-        @keyframes logoGlow {
-          0%, 100% {
-            filter: drop-shadow(0 0 15px ${accentColor}80);
-          }
-          50% {
-            filter: drop-shadow(0 0 25px ${accentColor});
-          }
-        }
-      `}</style>
     </div>
   );
 }

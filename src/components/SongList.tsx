@@ -51,12 +51,12 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
     return engagement;
   }, [requests]);
 
-  // Aggressively preload first 30 images using <link rel="preload"> for instant loading
+  // Aggressively preload first 50 images using <link rel="preload"> for instant loading
   useEffect(() => {
     const preloadLinks: HTMLLinkElement[] = [];
 
-    // Preload first 30 images (3 viewports worth) with high priority
-    songs.slice(0, 30).forEach((song) => {
+    // Preload first 50 images (5 viewports worth) with high priority
+    songs.slice(0, 50).forEach((song) => {
       if (song.albumArtUrl) {
         const link = document.createElement('link');
         link.rel = 'preload';
@@ -115,12 +115,12 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
           : 'linear-gradient(to right, var(--song-card-color-60), var(--song-card-color-10))';
         const cardShadow = isHot ? '0 0 8px rgba(239, 68, 68, 0.3)' : '0 0 6px var(--accent-color-40)';
 
-        // Eager load first 30 images (cover 3 viewports on older devices), lazy load the rest
-        const loadingStrategy = index < 30 ? 'eager' : 'lazy';
+        // Eager load first 50 images (cover 5 viewports on older devices), lazy load the rest
+        const loadingStrategy = index < 50 ? 'eager' : 'lazy';
         // Sync decoding for eager images (decode immediately), async for lazy (decode on-demand)
-        const decodingStrategy = index < 30 ? 'sync' : 'async';
-        // High priority fetch for first 30 images
-        const fetchPriority = index < 30 ? 'high' : 'low';
+        const decodingStrategy = index < 50 ? 'sync' : 'async';
+        // High priority fetch for first 50 images
+        const fetchPriority = index < 50 ? 'high' : 'low';
 
         return (
           <button
