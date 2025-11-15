@@ -51,6 +51,34 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
     return engagement;
   }, [requests]);
 
+  // Aggressively preload first 30 images using <link rel="preload"> for instant loading
+  useEffect(() => {
+    const preloadLinks: HTMLLinkElement[] = [];
+
+    // Preload first 30 images (3 viewports worth) with high priority
+    songs.slice(0, 30).forEach((song) => {
+      if (song.albumArtUrl) {
+        const link = document.createElement('link');
+        link.rel = 'preload';
+        link.as = 'image';
+        link.href = song.albumArtUrl.replace('/default.jpg', '/w_24,h_24,c_fill,q_20/default.jpg');
+        // High priority hint for browser
+        link.setAttribute('fetchpriority', 'high');
+        document.head.appendChild(link);
+        preloadLinks.push(link);
+      }
+    });
+
+    // Cleanup on unmount
+    return () => {
+      preloadLinks.forEach(link => {
+        if (link.parentNode) {
+          link.parentNode.removeChild(link);
+        }
+      });
+    };
+  }, [songs]);
+
   useEffect(() => {
     let ticking = false;
 
@@ -87,10 +115,12 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
           : 'linear-gradient(to right, var(--song-card-color-60), var(--song-card-color-10))';
         const cardShadow = isHot ? '0 0 8px rgba(239, 68, 68, 0.3)' : '0 0 6px var(--accent-color-40)';
 
-        // Eager load first 20 images (cover 2 viewports on older devices), lazy load the rest
-        const loadingStrategy = index < 20 ? 'eager' : 'lazy';
+        // Eager load first 30 images (cover 3 viewports on older devices), lazy load the rest
+        const loadingStrategy = index < 30 ? 'eager' : 'lazy';
         // Sync decoding for eager images (decode immediately), async for lazy (decode on-demand)
-        const decodingStrategy = index < 20 ? 'sync' : 'async';
+        const decodingStrategy = index < 30 ? 'sync' : 'async';
+        // High priority fetch for first 30 images
+        const fetchPriority = index < 30 ? 'high' : 'low';
 
         return (
           <button
@@ -115,6 +145,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
                   alt=""
                   loading={loadingStrategy}
                   decoding={decodingStrategy}
+                  fetchPriority={fetchPriority as 'high' | 'low'}
                   width="48"
                   height="48"
                   className="w-12 h-12 object-cover rounded-md flex-shrink-0"
