@@ -55,6 +55,29 @@ export function KioskPage({
     };
   }, []);
 
+  // Detect older devices and enable performance mode for kiosk only
+  useEffect(() => {
+    const userAgent = navigator.userAgent;
+    const cores = navigator.hardwareConcurrency || 2;
+
+    // Detect older iPads (iPad Air 2, iPad Mini 2-4, older iOS versions)
+    const isOldIpad = /iPad/.test(userAgent) && (
+      // iOS 9-12 (older versions)
+      /OS ([9]|1[0-2])_/.test(userAgent) ||
+      // Low CPU cores (2 or less typically indicates older hardware)
+      cores <= 2
+    );
+
+    if (isOldIpad) {
+      console.log('🚀 Performance mode enabled for older device');
+      document.body.classList.add('kiosk-performance-mode');
+    }
+
+    return () => {
+      document.body.classList.remove('kiosk-performance-mode');
+    };
+  }, []);
+
   // Preload first 150 album art images and track progress
   useEffect(() => {
     const imagesToPreload = 150;

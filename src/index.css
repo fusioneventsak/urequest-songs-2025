@@ -299,3 +299,96 @@ button {
   border-radius: 8px;
   border: 1px solid transparent;
 }
+
+/* ========================================
+   KIOSK PERFORMANCE MODE
+   Simplified styles for older iPads
+   ======================================== */
+
+body.kiosk-performance-mode {
+  /* Disable complex effects that hurt older GPUs */
+}
+
+/* Simplify glassmorphism - remove expensive blur filters */
+body.kiosk-performance-mode .glass-effect {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: rgba(26, 11, 46, 0.95) !important; /* Solid instead of blurred */
+  border: 1px solid rgba(157, 0, 255, 0.4) !important; /* Slightly more visible border */
+}
+
+/* Simplify song card shadows - use single simple shadow */
+body.kiosk-performance-mode .glass-effect {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important; /* Single shadow instead of multiple glows */
+}
+
+/* Remove all transitions and transforms */
+body.kiosk-performance-mode * {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Simplify button effects */
+body.kiosk-performance-mode .neon-button {
+  transition: none !important;
+}
+
+body.kiosk-performance-mode .neon-button:hover {
+  box-shadow: none !important; /* Remove glow on hover */
+  background: var(--neon-pink-bg) !important;
+}
+
+body.kiosk-performance-mode .neon-button:active {
+  transform: none !important; /* No movement on click */
+}
+
+/* Simplify text shadows - single layer only */
+body.kiosk-performance-mode .neon-text {
+  text-shadow: 0 0 3px var(--neon-pink) !important; /* Reduce blur radius */
+}
+
+/* Remove complex animations */
+body.kiosk-performance-mode .request-locked {
+  animation: none !important;
+  box-shadow: 0 0 10px rgba(255, 0, 255, 0.4) !important; /* Static glow */
+}
+
+/* Disable pulse animation */
+body.kiosk-performance-mode [style*="animation"] {
+  animation: none !important;
+}
+
+/* Simplify header transition */
+body.kiosk-performance-mode .frontend-header {
+  transition: none !important;
+}
+
+/* Remove transform effects for better performance */
+body.kiosk-performance-mode .hover\:scale-105:hover {
+  transform: none !important;
+}
+
+body.kiosk-performance-mode .active\:scale-95:active {
+  transform: none !important;
+}
+
+/* Optimize images - prevent layout shifts */
+body.kiosk-performance-mode img {
+  image-rendering: auto !important;
+  will-change: auto !important;
+}
+
+/* Simplify gradient backgrounds - use solid colors */
+body.kiosk-performance-mode [style*="gradient"] {
+  /* Keep gradients but ensure they're not animated */
+}
+
+/* Remove will-change hints that may cause issues on older devices */
+body.kiosk-performance-mode * {
+  will-change: auto !important;
+}
+
+/* Disable complex input focus effects */
+body.kiosk-performance-mode .input-field:focus {
+  box-shadow: 0 0 0 2px rgba(255, 0, 255, 0.3) !important; /* Simpler focus ring */
+}
