@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Music4, ThumbsUp, X, AlertTriangle, Music, User } from 'lucide-react';
+import { Music4, ThumbsUp, X, AlertTriangle, Music, User, Camera } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Logo } from './shared/Logo';
 import { SongList } from './SongList';
@@ -36,7 +36,7 @@ export function KioskPage({
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeTab, setActiveTab] = useState<'requests' | 'upvote'>('requests');
+  const [activeTab, setActiveTab] = useState<'requests' | 'upvote' | 'photobooth'>('requests');
   const [imagesLoaded, setImagesLoaded] = useState(false);
   const [loadedCount, setLoadedCount] = useState(0);
 
@@ -167,6 +167,7 @@ export function KioskPage({
   const navBgColor = settings?.nav_bg_color || '#0f051d';
   const highlightColor = settings?.highlight_color || '#ff00ff';
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
+  const secondaryColor = settings?.frontend_secondary_accent || '#9d00ff';
 
   // Get the locked request for the ticker
   const lockedRequest = useMemo(() => {
@@ -481,14 +482,45 @@ export function KioskPage({
                 </div>
               )}
             </>
-          ) : (
+          ) : activeTab === 'upvote' ? (
             <UpvoteList
               requests={mergedRequests}
               onVote={handleVote}
               currentUserId={`kiosk_${Date.now()}`}
               votingStates={votingStates}
             />
-          )}
+          ) : activeTab === 'photobooth' ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8">
+              <h2
+                className="text-4xl font-black text-center tracking-tight px-4"
+                style={{
+                  background: `linear-gradient(90deg, ${accentColor}, white, ${secondaryColor})`,
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                  backgroundClip: 'text',
+                  textShadow: `0 0 20px ${accentColor}60`,
+                  backgroundSize: '200% auto',
+                  animation: 'textShimmer 3s ease-in-out infinite'
+                }}
+              >
+                SCAN QR CODE WITH YOUR PHONE<br />TO ACCESS THE PHOTOBOOTH
+              </h2>
+
+              <div
+                className="bg-white p-6 rounded-xl"
+                style={{
+                  boxShadow: `0 0 40px ${accentColor}80, 0 8px 30px rgba(0, 0, 0, 0.5)`
+                }}
+              >
+                <QRCodeSVG
+                  value={settings?.photobooth_url || window.location.origin}
+                  size={280}
+                  level="H"
+                  includeMargin={true}
+                />
+              </div>
+            </div>
+          ) : null}
         </div>
       </main>
 
@@ -510,12 +542,33 @@ export function KioskPage({
               style={{ color: activeTab === 'requests' ? accentColor : highlightColor }}
             />
             <span
-              className="text-xs font-medium"
+              className="text-base font-semibold"
               style={{ color: activeTab === 'requests' ? accentColor : highlightColor }}
             >
               Request Songs
             </span>
           </button>
+
+          {settings?.photobooth_url && (
+            <button
+              onClick={() => setActiveTab('photobooth')}
+              className={`flex-1 max-w-xs flex flex-col items-center py-2 px-4 rounded-lg transition-all ${activeTab === 'photobooth'
+                  ? 'bg-neon-purple/20 border border-neon-pink/50'
+                  : ''
+                }`}
+            >
+              <Camera
+                className="w-6 h-6 mb-1"
+                style={{ color: activeTab === 'photobooth' ? accentColor : highlightColor }}
+              />
+              <span
+                className="text-base font-semibold"
+                style={{ color: activeTab === 'photobooth' ? accentColor : highlightColor }}
+              >
+                Photobooth
+              </span>
+            </button>
+          )}
 
           <button
             onClick={() => setActiveTab('upvote')}
@@ -529,7 +582,7 @@ export function KioskPage({
               style={{ color: activeTab === 'upvote' ? accentColor : highlightColor }}
             />
             <span
-              className="text-xs font-medium"
+              className="text-base font-semibold"
               style={{ color: activeTab === 'upvote' ? accentColor : highlightColor }}
             >
               Vote on Requests
