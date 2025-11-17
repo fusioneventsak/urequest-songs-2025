@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, Users, Music as BookMusic, ListMusic, Cog, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Music as BookMusic, ListMusic, Cog, Settings, BarChart3 } from 'lucide-react';
 
-type TabId = 'requests' | 'setlists' | 'songs' | 'settings';
+type TabId = 'requests' | 'setlists' | 'songs' | 'settings' | 'analytics';
 
 interface BackendTab {
   id: TabId;
@@ -35,6 +35,11 @@ export function BackendTabs({ activeTab, onTabChange }: BackendTabsProps) {
       id: 'settings',
       label: 'Settings',
       icon: <Cog className="w-4 h-4 mr-2" />
+    },
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      icon: <BarChart3 className="w-4 h-4 mr-2" />
     }
   ];
 

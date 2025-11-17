@@ -34,25 +34,22 @@ export function useSetListSync({
   const fetchSetLists = useCallback(async (bypassCache = false) => {
     // Don't allow concurrent fetches
     if (fetchInProgressRef.current) {
-      console.log('Fetch already in progress, skipping');
       return;
     }
-    
+
     // Debounce frequent calls (but allow bypass for critical updates)
     const now = Date.now();
     if (!bypassCache && now - lastFetchTimeRef.current < 300) { // 300ms debounce
-      console.log('Debouncing set list fetch...');
-      
       // Clear any existing timeout
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
       }
-      
+
       // Set a new timeout to fetch after debounce period
       fetchTimeoutRef.current = setTimeout(() => {
         fetchSetLists(bypassCache);
       }, 300);
-      
+
       return;
     }
     
@@ -69,7 +66,6 @@ export function useSetListSync({
       if (!bypassCache) {
         const cachedSetLists = cacheService.get<SetList[]>(SET_LISTS_CACHE_KEY);
         if (cachedSetLists?.length > 0) {
-          console.log('Using cached set lists');
           if (mountedRef.current && setSetLists) {
             setSetLists(cachedSetLists);
             setIsLoading(false);
@@ -78,11 +74,7 @@ export function useSetListSync({
         }
       }
 
-      // First, let's check what columns actually exist in the songs table
-      console.log('Checking songs table structure...');
-
       // Fetch set lists with songs - use wildcard to get all song columns
-      console.log('Fetching set lists with songs...');
       const { data: setListsData, error: setListsError } = await supabase
         .from('set_lists')
         .select(`
@@ -123,7 +115,6 @@ export function useSetListSync({
             .sort((a: any, b: any) => a.position - b.position)
             .map((sls: any) => {
               const song = sls.songs;
-              console.log('Processing song from setlist:', song.title, 'Album art:', song.albumArtUrl);
               return {
                 ...song,
                 // Use the standardized albumArtUrl field
@@ -133,18 +124,6 @@ export function useSetListSync({
               };
             })
         }));
-
-        // Log active set list for debugging
-        const activeSetList = formattedSetLists.find(sl => sl.isActive);
-        if (activeSetList) {
-          console.log(`Active set list found: ${activeSetList.name} (${activeSetList.id})`);
-          console.log(`Active setlist songs with album art: ${activeSetList.songs?.filter(s => s.albumArtUrl).length}/${activeSetList.songs?.length}`);
-          if (activeSetList.songs?.length > 0) {
-            console.log('First active setlist song:', activeSetList.songs[0]);
-          }
-        } else {
-          console.log('No active set list found');
-        }
         
         cacheService.setSetLists(SET_LISTS_CACHE_KEY, formattedSetLists);
         setSetLists(formattedSetLists);
@@ -159,14 +138,12 @@ export function useSetListSync({
         // Use cached data if available
         const cachedSetLists = cacheService.get<SetList[]>(SET_LISTS_CACHE_KEY);
         if (cachedSetLists) {
-          console.warn('Using stale cache due to fetch error');
           setSetLists(cachedSetLists);
         }
-        
+
         // Retry with exponential backoff
         if (retryCount < MAX_RETRY_ATTEMPTS) {
           const delay = RETRY_DELAY * Math.pow(2, retryCount);
-          console.log(`Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`);
           
           if (fetchTimeoutRef.current) {
             clearTimeout(fetchTimeoutRef.current);
@@ -197,7 +174,6 @@ export function useSetListSync({
       const setListsSub = RealtimeManager.createSubscription(
         'set_lists',
         (payload) => {
-          console.log('Set lists changed:', payload.eventType);
           fetchSetLists(true);
         }
       );
@@ -206,7 +182,6 @@ export function useSetListSync({
       const setListSongsSub = RealtimeManager.createSubscription(
         'set_list_songs',
         (payload) => {
-          console.log('Set list songs changed:', payload.eventType);
           fetchSetLists(true);
         }
       );
@@ -214,12 +189,10 @@ export function useSetListSync({
       const setListActivationSub = RealtimeManager.createSubscription(
         'set_lists',
         (payload) => {
-          console.log('🔔 Set list activation changed:', payload);
           // If this is an update and is_active changed, fetch immediately with high priority
           if (payload.eventType === 'UPDATE' &&
               payload.new && payload.old &&
               payload.new.is_active !== payload.old.is_active) {
-            console.log('⚡ Set list activation state changed - immediate update');
             // Clear cache and fetch fresh data
             cacheService.del(SET_LISTS_CACHE_KEY);
             fetchSetLists(true);
@@ -254,7 +227,6 @@ export function useSetListSync({
     // Add a polling interval as a fallback for production environments
     // where realtime might be less reliable
     const pollingInterval = setInterval(() => {
-      console.log('Polling for set list updates...');
       if (isOnline) fetchSetLists(true);
     }, 10000); // Poll every 10 seconds
     
@@ -286,8 +258,6 @@ export function useSetListSync({
 
   // Function to manually reconnect
   const reconnectSetLists = useCallback(() => {
-    console.log('🔄 Manually reconnecting set lists subscription');
-
     // Clean up existing subscriptions
     if (setListsSubscriptionRef.current) {
       try {

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
-import { Plus, Edit2, Trash2, X, Upload, Loader2, Filter, Tag } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Upload, Loader2, Filter, Tag, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../utils/supabase';
 import { searchITunes } from '../utils/itunes';
 import { SongEditorModal } from './SongEditorModal';
@@ -8,7 +8,7 @@ import type { Song } from '../types';
 
 interface SongLibraryProps {
   songs: Song[];
-  onAddSong: (song: Omit<Song, 'id'>) => void;
+  onAddSong: (song: Song) => void;
   onUpdateSong: (song: Song) => void;
   onDeleteSong: (id: string) => void;
 }
@@ -23,6 +23,7 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
   const [bulkInput, setBulkInput] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [genreFilter, setGenreFilter] = useState<string | null>(null);
+  const [expandedSongs, setExpandedSongs] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Extract all unique genres from songs
@@ -56,6 +57,19 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingSong(null);
+  };
+
+  // Toggle song expansion
+  const toggleSongExpansion = (songId: string) => {
+    setExpandedSongs(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(songId)) {
+        newSet.delete(songId);
+      } else {
+        newSet.add(songId);
+      }
+      return newSet;
+    });
   };
 
   const handleBulkTextSubmit = async () => {
@@ -210,9 +224,13 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
           .from('songs')
           .delete()
           .eq('id', id);
-        
+
         if (error) throw error;
-        onDeleteSong(id);
+
+        // Call parent callback to update state
+        if (onDeleteSong && typeof onDeleteSong === 'function') {
+          onDeleteSong(id);
+        }
       } catch (error) {
         console.error('Error deleting song:', error);
         alert('Error deleting song. Please try again.');
@@ -467,66 +485,107 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
         </div>
       )}
 
-      <div className="glass-effect rounded-lg overflow-hidden">
-        <table className="min-w-full divide-y divide-neon-purple/20">
-          <thead className="bg-neon-purple/10">
-            <tr>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">#</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Album Art</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Title</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Artist</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Genres</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Key</th>
-              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-neon-purple/20">
-            {filteredSongs.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-gray-400">
-                  {searchTerm || genreFilter 
-                    ? 'No songs match your search criteria' 
-                    : 'No songs in the library yet'}
-                </td>
-              </tr>
-            ) : (
-              filteredSongs.map((song, index) => (
-                <tr key={song.id} className="hover:bg-neon-purple/10">
-                  <td className="px-6 py-4 text-sm text-gray-300">{index + 1}</td>
-                  <td className="px-6 py-4">
+      {/* Mobile-friendly song list */}
+      <div className="space-y-2">
+        {filteredSongs.length === 0 ? (
+          <div className="glass-effect rounded-lg p-8 text-center text-gray-400">
+            {searchTerm || genreFilter
+              ? 'No songs match your search criteria'
+              : 'No songs in the library yet'}
+          </div>
+        ) : (
+          filteredSongs.map((song, index) => {
+            const isExpanded = expandedSongs.has(song.id);
+            return (
+              <div key={song.id} className="glass-effect rounded-lg overflow-hidden">
+                {/* Collapsed view - always visible */}
+                <div
+                  className="flex items-center p-3 cursor-pointer hover:bg-neon-purple/10 transition-colors"
+                  onClick={() => toggleSongExpansion(song.id)}
+                >
+                  {/* Album Art */}
+                  <div className="flex-shrink-0 mr-3">
                     <AlbumArtDisplay
                       song={song}
                       size="sm"
                       imageClassName="neon-border"
                     />
-                  </td>
-                  <td className="px-6 py-4 text-sm text-white">{song.title}</td>
-                  <td className="px-6 py-4 text-sm text-white">{song.artist}</td>
-                  <td className="px-6 py-4 text-sm">
-                    <div className="flex flex-wrap">{renderGenres(song.genre || '')}</div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-300">{song.key || '-'}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex space-x-2">
+                  </div>
+
+                  {/* Title & Artist */}
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-semibold truncate">{song.title}</h3>
+                    <p className="text-gray-300 text-sm truncate">{song.artist}</p>
+                  </div>
+
+                  {/* Expand/Collapse Icon */}
+                  <div className="flex-shrink-0 ml-2">
+                    {isExpanded ? (
+                      <ChevronUp className="w-5 h-5 text-neon-pink" />
+                    ) : (
+                      <ChevronDown className="w-5 h-5 text-gray-400" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Expanded view - details */}
+                {isExpanded && (
+                  <div className="border-t border-neon-purple/20 p-4 bg-neon-purple/5 space-y-3">
+                    {/* Genres */}
+                    {song.genre && (
+                      <div>
+                        <label className="text-xs text-gray-400 uppercase tracking-wider">Genres</label>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {renderGenres(song.genre)}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Key */}
+                    {song.key && (
+                      <div>
+                        <label className="text-xs text-gray-400 uppercase tracking-wider">Key</label>
+                        <p className="text-white text-sm mt-1">{song.key}</p>
+                      </div>
+                    )}
+
+                    {/* Notes */}
+                    {song.notes && (
+                      <div>
+                        <label className="text-xs text-gray-400 uppercase tracking-wider">Notes</label>
+                        <p className="text-gray-300 text-sm mt-1">{song.notes}</p>
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    <div className="flex justify-end space-x-2 pt-2 border-t border-neon-purple/20">
                       <button
-                        onClick={() => handleEditSong(song)}
-                        className="p-2 text-neon-pink hover:bg-neon-pink/10 rounded-full transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditSong(song);
+                        }}
+                        className="px-4 py-2 text-neon-pink hover:bg-neon-pink/10 rounded-lg transition-colors flex items-center"
                       >
-                        <Edit2 className="w-4 h-4" />
+                        <Edit2 className="w-4 h-4 mr-2" />
+                        Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteSong(song.id)}
-                        className="p-2 text-red-400 hover:bg-red-400/20 rounded-full transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteSong(song.id);
+                        }}
+                        className="px-4 py-2 text-red-400 hover:bg-red-400/20 rounded-lg transition-colors flex items-center"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete
                       </button>
                     </div>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                  </div>
+                )}
+              </div>
+            );
+          })
+        )}
       </div>
 
       {/* Song Editor Modal */}

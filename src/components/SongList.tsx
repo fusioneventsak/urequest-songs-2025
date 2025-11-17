@@ -51,7 +51,7 @@ const SongCard = memo(({
               alt=""
               loading={loadingStrategy}
               decoding={decodingStrategy}
-              fetchPriority={fetchPriority as 'high' | 'low'}
+              fetchpriority={fetchPriority as 'high' | 'low'}
               width="48"
               height="48"
               className="w-12 h-12 object-cover rounded-md flex-shrink-0"
@@ -68,7 +68,7 @@ const SongCard = memo(({
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-white truncate text-xl">{song.title}</h3>
+              <h3 className="font-semibold text-white truncate text-lg">{song.title}</h3>
               {isHot && (
                 <span className="flex items-center gap-1 px-2 py-0.5 bg-red-600/20 text-red-300 rounded-full font-bold text-xs flex-shrink-0">
                   <Zap className="w-3 h-3" />
@@ -76,7 +76,7 @@ const SongCard = memo(({
                 </span>
               )}
             </div>
-            <p className="text-gray-300 text-lg truncate">{song.artist}</p>
+            <p className="text-gray-300 text-base truncate">{song.artist}</p>
             {song.genre && (
               <div className="flex flex-wrap gap-1 mt-1">
                 {song.genre.split(',').slice(0, 2).map((genre, genreIndex) => (
@@ -99,7 +99,7 @@ const SongCard = memo(({
           </div>
           <div className="flex-shrink-0 ml-2">
             <div
-              className="px-4 py-2 rounded-lg text-white transition-all duration-200 whitespace-nowrap text-base font-extrabold tracking-wide uppercase transform hover:scale-105 active:scale-95"
+              className="px-3 py-1.5 rounded-lg text-white transition-all duration-200 whitespace-nowrap text-sm font-extrabold tracking-wide uppercase transform hover:scale-105 active:scale-95"
               style={{
                 backgroundColor: 'var(--accent-color)',
                 textShadow: '0 1px 3px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.3)',

@@ -9,6 +9,7 @@ export interface SongRequest {
     photo: string;
     message?: string;
     timestamp: string;
+    source?: 'web' | 'kiosk'; // Track individual requester source
   }[];
   votes: number;
   status: 'pending' | 'approved' | 'rejected' | 'played';
@@ -16,6 +17,8 @@ export interface SongRequest {
   isPlayed?: boolean;
   isHot?: boolean;
   createdAt: string;
+  created_at?: string; // Database column name (snake_case)
+  source?: 'web' | 'kiosk'; // Request source
 }
 
 export interface RequestFormData {
@@ -26,6 +29,7 @@ export interface RequestFormData {
   userPhoto: string;
   message?: string;
   userId?: string;
+  source?: 'web' | 'kiosk'; // Track request source
 }
 
 export interface Song {

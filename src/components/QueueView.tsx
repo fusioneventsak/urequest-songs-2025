@@ -36,15 +36,6 @@ export function QueueView({
   onResetQueue,
   isOnline = true
 }: QueueViewProps) {
-  console.log('📺 QueueView rendered with requests:', {
-    count: requests.length,
-    requests: requests.slice(0, 3).map(r => ({
-      id: r.id,
-      title: r.title,
-      requesters: r.requesters?.length || 0
-    }))
-  });
-
   const [lockingStates, setLockingStates] = useState<Set<string>>(new Set());
   const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set());
   const [isResetting, setIsResetting] = useState(false);
@@ -163,9 +154,8 @@ export function QueueView({
       (optimisticLockedIds.size > 0 && serverLockedIds.size > 0 && 
        !Array.from(serverLockedIds).every(id => optimisticLockedIds.has(id)))
     );
-    
+
     if (needsClear && optimisticLocks.size > 0) {
-      console.log('✅ Clearing optimistic locks - server state matches');
       setOptimisticLocks(new Set());
     }
   }, [requests, optimisticLocks]);
@@ -183,37 +173,15 @@ export function QueueView({
     }
   }, [requests, settings?.default_expanded_requesters]);
 
-  // Log incoming requests for debugging
-  useEffect(() => {
-    console.log('QueueView - Received requests:', requests.map(r => ({
-      id: r.id,
-      title: r.title,
-      requesters: r.requesters?.map(rq => ({
-        name: rq.name,
-        message: rq.message,
-        timestamp: rq.timestamp
-      }))
-    })));
-  }, [requests]);
-
   // Deduplicate requests by song title and combine requesters
   const deduplicatedRequests = useMemo(() => {
-    console.log('Deduplicating requests...');
     const requestMap = new Map<string, SongRequest>();
 
     requests
       .filter(request => !request.isPlayed && !optimisticPlayed.has(request.id))
       .forEach(request => {
         const key = `${request.title.toLowerCase()}|${(request.artist || '').toLowerCase()}`;
-        
-        console.log(`Processing request: ${request.title}`, {
-          id: request.id,
-          hasRequesters: Array.isArray(request.requesters),
-          requestersCount: request.requesters?.length || 0,
-          firstRequester: request.requesters && request.requesters.length > 0 ? 
-            { name: request.requesters[0].name, hasMessage: !!request.requesters[0].message } : null
-        });
-        
+
         if (requestMap.has(key)) {
           const existing = requestMap.get(key)!;
           
@@ -240,10 +208,6 @@ export function QueueView({
             votes: (existing.votes || 0) + (request.votes || 0),
             isLocked: existing.isLocked || request.isLocked
           });
-
-          console.log(`Updated existing request: ${existing.title}`, {
-            requestersCount: updateRequesters.length
-          });
         } else {
           // Make sure requesters is a defined array
           const requesters = Array.isArray(request.requesters) ? request.requesters : [];
@@ -253,21 +217,10 @@ export function QueueView({
             requesters: requesters,
             votes: request.votes || 0
           });
-
-          console.log(`Added new request: ${request.title}`, {
-            requestersCount: requesters.length
-          });
         }
       });
 
-    const result = Array.from(requestMap.values());
-    console.log('Deduplication complete. Results:', result.map(r => ({
-      title: r.title,
-      requestersCount: r.requesters?.length || 0,
-      allHaveMessages: r.requesters?.every(req => !!req.message)
-    })));
-
-    return result;
+    return Array.from(requestMap.values());
   }, [requests, optimisticPlayed]);
 
   // Sort deduplicated requests
@@ -342,9 +295,7 @@ export function QueueView({
         const { error } = await supabase.rpc('unlock_request', { request_id: id });
         if (error) throw error;
       }
-      
-      console.log('✅ Lock status updated in database');
-      
+
       // Force a refresh of the requests data to ensure real-time updates
       setTimeout(() => {
         if (mountedRef.current) {
@@ -397,14 +348,45 @@ export function QueueView({
     });
   };
 
+  // Calculate queue statistics - include ALL requests (even played ones) for accurate totals
+  const queueStats = useMemo(() => {
+    // Use original requests array to include played songs in the counts
+    const uniqueSongs = requests.length;
+    const totalRequests = requests.reduce((sum, req) => sum + (req.requesters?.length || 0), 0);
+    const totalUpvotes = requests.reduce((sum, req) => sum + (req.votes || 0), 0);
+    const totalPlayed = requests.filter(req => req.isPlayed || (req as any).is_played).length;
+    return { uniqueSongs, totalRequests, totalUpvotes, totalPlayed };
+  }, [requests]);
+
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold neon-text">Request Queue</h2>
-        <div className="flex items-center space-x-4">
-          <div className="text-sm text-gray-400">
-          Priority = Requesters + Upvotes
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold neon-text">Request Queue</h2>
+          <div className="flex items-center gap-2 px-3 py-1.5 glass-effect rounded-lg border border-neon-purple/30">
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-gray-400">Songs:</span>
+              <span className="font-bold text-white">{queueStats.uniqueSongs}</span>
+            </div>
+            <div className="w-px h-4 bg-gray-600"></div>
+            <div className="flex items-center gap-1.5 text-xs">
+              <span className="text-gray-400">Requests:</span>
+              <span className="font-bold text-white">{queueStats.totalRequests}</span>
+            </div>
+            <div className="w-px h-4 bg-gray-600"></div>
+            <div className="flex items-center gap-1.5 text-xs">
+              <ThumbsUp className="w-3 h-3 text-gray-400" />
+              <span className="font-bold text-white">{queueStats.totalUpvotes}</span>
+            </div>
+            <div className="w-px h-4 bg-gray-600"></div>
+            <div className="flex items-center gap-1.5 text-xs">
+              <CheckCircle2 className="w-3 h-3 text-green-500" />
+              <span className="text-gray-400">Played:</span>
+              <span className="font-bold text-white">{queueStats.totalPlayed}</span>
+            </div>
           </div>
+        </div>
+        <div className="flex items-center space-x-4">
           {onResetQueue && (
             <button
               onClick={handleResetQueue}

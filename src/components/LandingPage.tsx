@@ -186,9 +186,9 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: bgColor }}>
+    <div className="min-h-screen flex items-center justify-center p-3" style={{ backgroundColor: bgColor }}>
       <div
-        className="glass-effect rounded-lg shadow-xl p-8 max-w-md w-full border relative overflow-hidden"
+        className="glass-effect rounded-lg shadow-xl p-4 max-w-md w-full border relative overflow-hidden"
         style={{
           borderColor: `${songBorderColor}40`,
           boxShadow: `0 0 20px ${songBorderColor}30`,
@@ -204,14 +204,14 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
           }}
         />
 
-        <div className="text-center mb-6 relative z-10">
+        <div className="text-center mb-3 relative z-10">
           {/* Logo */}
           {logoUrl ? (
             <div className="mb-1">
               <img
                 src={logoUrl}
                 alt="Logo"
-                className="h-36 mx-auto block"
+                className="h-20 mx-auto block"
                 style={{
                   filter: `drop-shadow(0 0 15px ${accentColor}60)`,
                   objectFit: 'contain',
@@ -240,40 +240,49 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
           ) : (
             <>
               <h1
-                className="text-xl font-extrabold text-white mb-2 leading-tight tracking-wide"
+                className="text-base font-extrabold text-white mb-1 leading-tight tracking-wide"
                 style={{
                   color: accentColor,
                   textShadow: `0 0 20px ${accentColor}, 0 0 10px ${accentColor}80`
                 }}
               >
-                GET READY TO CONTROL THE SHOW
+                Welcome to the
               </h1>
+              <h2
+                className="text-lg font-extrabold text-white mb-1.5 leading-tight tracking-wide"
+                style={{
+                  color: accentColor,
+                  textShadow: `0 0 20px ${accentColor}, 0 0 10px ${accentColor}80`
+                }}
+              >
+                ALL REQUEST EXPERIENCE
+              </h2>
               <p
-                className="text-sm font-bold mb-3"
+                className="text-xs font-semibold mb-2 leading-tight"
                 style={{
                   color: songBorderColor,
                   textShadow: `0 0 8px ${songBorderColor}60`
                 }}
               >
-                WE ONLY PLAY THE MOST REQUESTED AND UPVOTED SONGS
+                You shape the show. Make as many requests as you like and upvote your favorites.
               </p>
-              <p className="text-gray-300 text-xs">
-                Tell us who you are so you can start making requests
+              <p className="text-gray-300 text-xs mb-1.5">
+                The most requested songs by the audience will be played.
               </p>
             </>
           )}
         </div>
 
         {errorMessage && (
-          <div className="bg-red-500/10 border border-red-500/30 rounded-md p-3 mb-6 flex items-start">
-            <AlertTriangle className="w-5 h-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" />
-            <p className="text-red-400 text-sm">{errorMessage}</p>
+          <div className="bg-red-500/10 border border-red-500/30 rounded-md p-2 mb-3 flex items-start">
+            <AlertTriangle className="w-4 h-4 text-red-400 mr-2 flex-shrink-0 mt-0.5" />
+            <p className="text-red-400 text-xs">{errorMessage}</p>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-5 relative z-10">
+        <form onSubmit={handleSubmit} className="space-y-3 relative z-10">
           <div>
-            <label className="block text-sm font-bold text-white mb-2" style={{ color: accentColor }}>
+            <label className="block text-xs font-bold text-white mb-1" style={{ color: accentColor }}>
               MY NAME <span style={{ opacity: 0.7 }}>*</span>
             </label>
             <input
@@ -281,7 +290,7 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
               required
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg text-white placeholder-gray-400 focus:outline-none transition-all"
+              className="w-full px-3 py-2 rounded-lg text-white placeholder-gray-400 focus:outline-none transition-all"
               style={{
                 backgroundColor: `${songBorderColor}10`,
                 border: `1px solid ${songBorderColor}30`,
@@ -301,12 +310,12 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-bold text-white mb-2" style={{ color: accentColor }}>
+            <label className="block text-xs font-bold text-white mb-1" style={{ color: accentColor }}>
               MY PHOTO <span style={{ color: songBorderColor, fontWeight: 'normal' }}>(Optional)</span>
             </label>
-            
+
             {isCapturing ? (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 <video
                   ref={videoRef}
                   autoPlay
@@ -323,7 +332,7 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
                     type="button"
                     onClick={capturePhoto}
                     disabled={isProcessing}
-                    className="flex-1 px-4 py-3 rounded-lg font-extrabold tracking-wide uppercase text-sm transition-all transform hover:scale-105 active:scale-95 disabled:transform-none flex items-center justify-center text-white shadow-lg"
+                    className="flex-1 px-3 py-2 rounded-lg font-extrabold tracking-wide uppercase text-xs transition-all transform hover:scale-105 active:scale-95 disabled:transform-none flex items-center justify-center text-white shadow-lg"
                     style={{
                       backgroundColor: accentColor,
                       textShadow: '0 1px 3px rgba(0,0,0,0.8), 0 0 10px rgba(0,0,0,0.3)',
@@ -355,32 +364,32 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
                 </div>
               </div>
             ) : photo ? (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <img
                   src={photo}
                   alt="Preview"
-                  className="w-24 h-24 rounded-full mx-auto object-cover"
+                  className="w-16 h-16 rounded-full mx-auto object-cover"
                   style={{
-                    border: `3px solid ${songBorderColor}`,
-                    boxShadow: `0 0 15px ${songBorderColor}60`
+                    border: `2px solid ${songBorderColor}`,
+                    boxShadow: `0 0 10px ${songBorderColor}60`
                   }}
                 />
                 <button
                   type="button"
                   onClick={() => setPhoto('')}
-                  className="w-full px-3 py-1.5 text-xs hover:text-white transition-colors"
+                  className="w-full px-2 py-1 text-xs hover:text-white transition-colors"
                   style={{ color: songBorderColor }}
                 >
                   Remove Photo
                 </button>
               </div>
             ) : (
-              <div className="space-y-3">
+              <div className="space-y-2">
                 <div className="flex items-center justify-center">
-                  <UserCircle className="w-20 h-20 text-gray-400 mx-auto" />
+                  <UserCircle className="w-12 h-12 text-gray-400 mx-auto" />
                 </div>
                 <p className="text-center text-gray-400 text-xs">
-                  A default avatar will be created
+                  Optional - Default avatar will be created
                 </p>
                 
                 {/* Single button that handles both camera and gallery selection via file input */}
@@ -423,7 +432,7 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
           <button
             type="submit"
             disabled={!name.trim() || isProcessing}
-            className="w-full px-4 py-3 rounded-lg font-extrabold tracking-wide uppercase text-sm transition-all transform hover:scale-105 active:scale-95 disabled:transform-none flex items-center justify-center text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full px-4 py-2.5 rounded-lg font-extrabold tracking-wide uppercase text-sm transition-all transform hover:scale-105 active:scale-95 disabled:transform-none flex items-center justify-center text-white shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               backgroundColor: accentColor,
               textShadow: '0 1px 3px rgba(0,0,0,0.8)',

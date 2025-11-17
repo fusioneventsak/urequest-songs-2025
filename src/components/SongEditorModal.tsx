@@ -8,8 +8,8 @@ interface SongEditorModalProps {
   isOpen: boolean;
   onClose: () => void;
   song?: Song | null;
-  onSave: (song: Song) => void;
-  onAdd: (song: Omit<Song, 'id'>) => void;
+  onSave?: (song: Song) => void;
+  onAdd?: (song: Song) => void;
 }
 
 export function SongEditorModal({ isOpen, onClose, song, onSave, onAdd }: SongEditorModalProps) {
@@ -98,7 +98,11 @@ export function SongEditorModal({ isOpen, onClose, song, onSave, onAdd }: SongEd
           .eq('id', song.id);
 
         if (error) throw error;
-        onSave({ id: song.id, ...songData });
+
+        // Call onSave callback with updated song data
+        if (onSave) {
+          onSave({ id: song.id, ...songData });
+        }
       } else {
         // Add new song
         const { data, error } = await supabase
@@ -108,7 +112,11 @@ export function SongEditorModal({ isOpen, onClose, song, onSave, onAdd }: SongEd
           .single();
 
         if (error) throw error;
-        if (data) onAdd(data);
+
+        // Call onAdd callback with the returned song data (includes id)
+        if (data && onAdd) {
+          onAdd(data);
+        }
       }
 
       onClose();

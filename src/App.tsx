@@ -14,8 +14,9 @@ import { LogoManager } from './components/LogoManager';
 import { ColorCustomizer } from './components/ColorCustomizer';
 import { SettingsManager } from './components/SettingsManager';
 import { BackendTabs } from './components/BackendTabs';
+import { Analytics } from './components/Analytics';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
-import { useRequestSync } from './hooks/useRequestSync';
+import { useRequestSync } from './hooks/useRequestSync'; // Debug transform source field
 import { useSongSync } from './hooks/useSongSync';
 import { useSetListSync } from './hooks/useSetListSync';
 import { useUiSettings } from './hooks/useUiSettings';
@@ -25,6 +26,7 @@ import { LoadingPreloader } from './components/shared/LoadingPreloader';
 import { LogOut } from 'lucide-react';
 import { Logo } from './components/shared/Logo';
 import { KioskPage } from './components/KioskPage';
+import { Leaderboard } from './components/Leaderboard';
 import toast from 'react-hot-toast';
 
 const DEFAULT_BAND_LOGO = "https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png";
@@ -44,6 +46,7 @@ function generateUUID(): string {
 }
 const BACKEND_PATH = "backend";
 const KIOSK_PATH = "kiosk";
+const LEADERBOARD_PATH = "leaderboard";
 const MAX_PHOTO_SIZE = 250 * 1024; // 250KB limit for database storage
 const MAX_REQUEST_RETRIES = 3;
 
@@ -60,6 +63,7 @@ function App() {
   const initialPath = window.location.pathname;
   const [isBackend, setIsBackend] = useState(initialPath.includes(BACKEND_PATH));
   const [isKiosk, setIsKiosk] = useState(initialPath.includes(KIOSK_PATH));
+  const [isLeaderboard, setIsLeaderboard] = useState(initialPath.includes(LEADERBOARD_PATH));
 
   // Minimum preloader display time
   const [minLoadTimePassed, setMinLoadTimePassed] = useState(false);
@@ -165,16 +169,23 @@ function App() {
   useEffect(() => {
     const checkPath = () => {
       const path = window.location.pathname;
-      
+
       if (path.includes(BACKEND_PATH)) {
         setIsBackend(true);
         setIsKiosk(false);
+        setIsLeaderboard(false);
       } else if (path.includes(KIOSK_PATH)) {
         setIsKiosk(true);
         setIsBackend(false);
+        setIsLeaderboard(false);
+      } else if (path.includes(LEADERBOARD_PATH)) {
+        setIsLeaderboard(true);
+        setIsBackend(false);
+        setIsKiosk(false);
       } else {
         setIsBackend(false);
         setIsKiosk(false);
+        setIsLeaderboard(false);
       }
     };
 
@@ -347,11 +358,13 @@ function App() {
           votes: 0,
           is_locked: false,
           is_played: false,
+          is_active: true,  // New requests are active (visible in queue)
           created_at: new Date().toISOString()
         }]);
 
       if (error) throw error;
 
+      console.log('🔍 DEBUG INSERT - data.source:', data.source, 'final source:', data.source || 'web');
       const { error: requesterError } = await supabase
         .from('requesters')
         .insert([{
@@ -359,7 +372,8 @@ function App() {
           request_id: requestId,
           name: requesterName,
           photo: requesterPhoto || '',
-          message: data.message || ''
+          message: data.message || '',
+          source: data.source || 'web' // Track request source (kiosk or web)
           // created_at is automatically set by the database
         }]);
 
@@ -626,33 +640,22 @@ function App() {
     }
 
     try {
-      console.log('🗑️ Resetting entire queue...');
+      console.log('🗑️ Clearing active queue (preserving analytics data)...');
 
-      // Delete all user votes
-      const { error: votesError } = await supabase
-        .from('user_votes')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
-
-      if (votesError) throw votesError;
-
-      // Delete all requesters
-      const { error: requestersError } = await supabase
-        .from('requesters')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
-
-      if (requestersError) throw requestersError;
-
-      // Delete all requests
+      // Mark all active requests as inactive instead of deleting
+      // This preserves historical data for analytics
       const { error: requestsError } = await supabase
         .from('requests')
-        .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
+        .update({ is_active: false })
+        .eq('is_active', true);
 
       if (requestsError) throw requestsError;
 
-      toast.success('Queue cleared successfully!');
+      // Note: We keep requesters and votes in the database for analytics
+      // They are filtered out via the requests.is_active flag
+
+      toast.success('Queue cleared successfully! Analytics data preserved.');
+      console.log('✅ Queue cleared - all requests marked as inactive');
     } catch (error) {
       console.error('Error resetting queue:', error);
       toast.error('Failed to clear queue. Please try again.');
@@ -842,6 +845,14 @@ function App() {
       votes: optimisticVotes.get(req.id) ?? req.votes ?? 0
     }));
 
+    // DEBUG: Check if source field exists in merged data
+    if (merged.length > 0 && merged[0].requesters && merged[0].requesters.length > 0) {
+      console.log('🔍 MERGED CHECK - First request title:', merged[0].title);
+      console.log('🔍 MERGED CHECK - First requester full object:', merged[0].requesters[0]);
+      console.log('🔍 MERGED CHECK - First requester source field:', merged[0].requesters[0].source);
+      console.log('🔍 MERGED CHECK - Source type:', typeof merged[0].requesters[0].source);
+    }
+
     console.log('🔄 Output merged requests count:', merged.length);
     console.log('🔄 First 3 merged:', merged.slice(0, 3).map(r => ({
       id: r.id,
@@ -864,6 +875,15 @@ function App() {
         accentColor={settings?.frontend_accent_color || '#ff00ff'}
         bandName={settings?.band_name || 'Band Name'}
       />
+    );
+  }
+
+  // Show leaderboard mode
+  if (isLeaderboard) {
+    return (
+      <ErrorBoundary>
+        <Leaderboard />
+      </ErrorBoundary>
     );
   }
 
@@ -986,6 +1006,9 @@ function App() {
                   }}
                 />
               </div>
+            )}
+            {activeBackendTab === 'analytics' && (
+              <Analytics />
             )}
           </div>
         </div>

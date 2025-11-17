@@ -2,7 +2,7 @@ import { useEffect, useCallback, useState, useRef } from 'react';
 import { supabase } from '../utils/supabase';
 import type { SongRequest } from '../types';
 
-console.log('🔥🔥🔥 USE REQUEST SYNC FILE LOADED - FRESH CODE 🔥🔥🔥');
+console.log('🔥🔥🔥 USE REQUEST SYNC FILE LOADED - WITH SOURCE FIELD FIX 🔥🔥🔥');
 
 const CACHE_DURATION = 30000; // 30 seconds
 const MAX_RETRY_ATTEMPTS = 3;
@@ -74,8 +74,9 @@ export function useRequestSync({
       setIsLoading(true);
       setError(null); 
 
-      // FIXED: Use direct query instead of missing function
-      console.log('🔄 Fetching requests with requesters...');
+      // Fetch only ACTIVE requests (is_active=true) to show current queue
+      // Analytics fetches ALL requests regardless of is_active status
+      console.log('🔄 Fetching active requests with requesters...');
       const { data: requestsData, error: requestsError } = await supabase
         .from('requests')
         .select(`
@@ -85,9 +86,11 @@ export function useRequestSync({
             name,
             photo,
             message,
+            source,
             created_at
           )
         `)
+        .eq('is_active', true)  // Only fetch active requests for the queue
         .order('created_at', { ascending: false });
       
       console.log('🔍 DEBUG - Raw Supabase Response:');
@@ -95,6 +98,11 @@ export function useRequestSync({
       console.log('- Data length:', requestsData?.length || 0);
       if (requestsData && requestsData.length > 0) {
         console.log('- First request raw:', requestsData[0]);
+        console.log('🔍 CRITICAL - First request requesters array:', requestsData[0].requesters);
+        if (requestsData[0].requesters && requestsData[0].requesters.length > 0) {
+          console.log('🔍 CRITICAL - First requester object:', requestsData[0].requesters[0]);
+          console.log('🔍 CRITICAL - First requester source field:', requestsData[0].requesters[0].source);
+        }
       }
 
       if (requestsError) throw requestsError; 
@@ -123,13 +131,18 @@ export function useRequestSync({
           title: request.title,
           artist: request.artist || '',
           albumArtUrl: request.album_art_url || undefined,
-          requesters: (request.requesters || []).map((requester: any) => ({
-            id: requester.id,
-            name: requester.name || 'Anonymous',
-            photo: requester.photo || '',
-            message: requester.message || '',
-            timestamp: requester.created_at  // Fixed: changed from createdAt to timestamp
-          })),
+          requesters: (request.requesters || []).map((requester: any) => {
+            const transformed = {
+              id: requester.id,
+              name: requester.name || 'Anonymous',
+              photo: requester.photo || '',
+              message: requester.message || '',
+              source: requester.source,  // Include source field for kiosk tracking
+              timestamp: requester.created_at  // Fixed: changed from createdAt to timestamp
+            };
+            console.log(`🔍 TRANSFORM - Input requester.source: ${requester.source}, Output source: ${transformed.source}`);
+            return transformed;
+          }),
           votes: request.votes || 0,
           status: request.status as any,
           isLocked: request.is_locked || false,

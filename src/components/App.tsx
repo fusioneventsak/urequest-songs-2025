@@ -27,6 +27,7 @@ import { BackendTabs } from './components/BackendTabs';
 import { LandingPage } from './components/LandingPage';
 import { Logo } from './components/shared/Logo';
 import { KioskPage } from './components/KioskPage';
+import { Analytics } from './components/Analytics';
 
 const DEFAULT_BAND_LOGO = "https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png";
 const BACKEND_PATH = "backend";
@@ -42,23 +43,14 @@ function App() {
   const [isKiosk, setIsKiosk] = useState(false);
   
   // Backend tab state
-  const [activeBackendTab, setActiveBackendTab] = useState<'requests' | 'setlists' | 'songs' | 'settings'>('requests');
+  const [activeBackendTab, setActiveBackendTab] = useState<'requests' | 'setlists' | 'songs' | 'settings' | 'analytics'>('requests');
   
   // App data state
   const [songs, setSongs] = useState<Song[]>([]);
   const [requests, setRequestsState] = useState<SongRequest[]>([]);
   
-  // Debug wrapper for setRequests
+  // Wrapper for setRequests
   const setRequests = useCallback((newRequests: any) => {
-    console.log('🔄 setRequests called with:', newRequests);
-    if (Array.isArray(newRequests)) {
-      console.log('📥 Setting requests to array of length:', newRequests.length);
-      newRequests.forEach((req, index) => {
-        console.log(`  ${index + 1}. ${req.title} (id: ${req.id}, played: ${req.isPlayed}, locked: ${req.isLocked})`);
-      });
-    } else if (typeof newRequests === 'function') {
-      console.log('📥 Setting requests with function');
-    }
     setRequestsState(newRequests);
   }, []);
   
@@ -90,7 +82,6 @@ function App() {
   // 🚀 ENHANCED: Replace useRequestSync with direct real-time implementation
   const [isFetchingRequests, setIsFetchingRequests] = useState(true);
   const reconnectRequests = useCallback(async () => {
-    console.log('🔄 Manual reconnect triggered - fetching latest requests...');
     
     try {
       const { data: requestsData, error: requestsError } = await supabase
@@ -138,13 +129,6 @@ function App() {
           createdAt: new Date(request.created_at)
         }));
 
-        console.log('✅ Manual fetch completed:', formattedRequests.length, 'requests');
-        console.log('📊 Request status breakdown:', {
-          total: formattedRequests.length,
-          active: formattedRequests.filter(r => !r.isPlayed).length,
-          played: formattedRequests.filter(r => r.isPlayed).length,
-          locked: formattedRequests.filter(r => r.isLocked).length
-        });
         setRequests(formattedRequests);
       }
     } catch (error) {
@@ -154,10 +138,6 @@ function App() {
 
   // 🚀 SIMPLIFIED: mergedRequests without optimistic vote complications
   const mergedRequests = useMemo(() => {
-    console.log('🔀 App: Creating simplified merged requests:', {
-      realRequests: requests.length,
-      optimisticRequests: optimisticRequests.size
-    });
 
     // Start with real requests - no optimistic vote modifications
     const realRequests = requests.map(req => ({
@@ -183,7 +163,6 @@ function App() {
         // Remove optimistic request if real version exists
         const hasRealVersion = realTitles.has(req.title?.toLowerCase() || '');
         if (hasRealVersion) {
-          console.log(`🧹 Removing optimistic request "${req.title}" - real version exists`);
           // Clean up the optimistic state
           setTimeout(() => {
             setOptimisticRequests(prev => {
@@ -213,28 +192,12 @@ function App() {
       return shouldInclude;
     });
 
-    console.log('✅ Simplified merged requests created:', {
-      total: merged.length,
-      fromReal: realRequests.filter(r => !r.isPlayed).length,
-      fromOptimistic: validOptimisticRequests.length,
-      titles: merged.map(r => r.title)
-    });
 
     return merged;
   }, [requests, optimisticRequests]);
 
   // Add debugging for when requests change
   useEffect(() => {
-    console.log('🔄 App: requests state changed:', {
-      length: requests.length,
-      optimisticLength: optimisticRequests.size,
-      requests: requests.map(r => ({
-        id: r.id,
-        title: r.title,
-        isPlayed: r.isPlayed,
-        isLocked: r.isLocked,
-        votes: r.votes
-      })),
       optimistic: Array.from(optimisticRequests.entries()).map(([id, req]) => ({
         id,
         title: req.title,
@@ -248,36 +211,15 @@ function App() {
     const lockedRequests = mergedRequests.filter(r => r.isLocked);
     const activeLockedRequest = lockedRequests.find(r => !r.isPlayed);
     
-    console.log('🔄 App: mergedRequests changed - TICKER UPDATE CHECK:', {
-      totalRequests: mergedRequests.length,
-      totalLocked: lockedRequests.length,
-      activeLockedRequest: activeLockedRequest ? {
-        id: activeLockedRequest.id,
-        title: activeLockedRequest.title,
-        artist: activeLockedRequest.artist,
-        isLocked: activeLockedRequest.isLocked,
-        isPlayed: activeLockedRequest.isPlayed
-      } : null,
-      allRequests: mergedRequests.map(r => ({
-        id: r.id,
-        title: r.title,
-        isPlayed: r.isPlayed,
-        isLocked: r.isLocked,
-        votes: r.votes
-      }))
-    });
     
     // Log ticker state change
     if (activeLockedRequest) {
-      console.log('🎯 TICKER SHOULD SHOW:', `"${activeLockedRequest.title}" by ${activeLockedRequest.artist || 'Unknown Artist'}`);
     } else {
-      console.log('🎯 TICKER SHOULD BE EMPTY: No locked requests found');
     }
   }, [mergedRequests]);
 
   // Enhanced real-time subscription setup with INSTANT updates
   useEffect(() => {
-    console.log('🚀 Setting up INSTANT real-time subscriptions...');
     
     // Initial fetch
     reconnectRequests();
@@ -294,43 +236,27 @@ function App() {
           table: 'requests'
         },
         (payload) => {
-          console.log('🚨 INSTANT REAL-TIME: Request change detected', {
-            event: payload.eventType,
-            title: payload.new?.title || payload.old?.title,
-            id: payload.new?.id || payload.old?.id,
-            isPlayed: payload.new?.is_played,
-            wasPlayed: payload.old?.is_played,
-            isLocked: payload.new?.is_locked,
-            wasLocked: payload.old?.is_locked,
-            votes: payload.new?.votes,
-            oldVotes: payload.old?.votes
-          });
           
           // INSTANT updates for ALL changes - no delays
           if (payload.eventType === 'DELETE') {
-            console.log('🚨 DELETE detected - clearing queue across all users');
             reconnectRequests(); // INSTANT
           } else if (payload.eventType === 'UPDATE') {
             // Check for lock changes
             if (payload.old?.is_locked !== payload.new?.is_locked) {
-              console.log('🚨 LOCK STATUS CHANGED - updating ticker instantly');
               reconnectRequests(); // INSTANT for ticker
             }
             // Check for vote changes
             else if (payload.old?.votes !== payload.new?.votes) {
-              console.log('🚨 VOTE COUNT CHANGED - updating instantly');
               reconnectRequests(); // INSTANT for votes
             }
             // Check for played status
             else if (payload.old?.is_played !== payload.new?.is_played) {
-              console.log('🚨 PLAYED STATUS CHANGED - updating instantly');
               reconnectRequests(); // INSTANT
             }
             else {
               reconnectRequests(); // INSTANT for any other updates
             }
           } else if (payload.eventType === 'INSERT') {
-            console.log('🚨 NEW REQUEST INSERTED - updating instantly');
             reconnectRequests(); // INSTANT
           }
         }
@@ -343,40 +269,30 @@ function App() {
           table: 'requesters'
         },
         (payload) => {
-          console.log('🚨 INSTANT REAL-TIME: Requester change detected', {
-            event: payload.eventType,
-            name: payload.new?.name || payload.old?.name,
-            requestId: payload.new?.request_id || payload.old?.request_id
-          });
           
           // INSTANT update for requester changes
           reconnectRequests();
         }
       )
       .subscribe((status) => {
-        console.log('📡 INSTANT subscription status:', status);
         
         if (status === 'SUBSCRIBED') {
-          console.log('✅ INSTANT real-time is ACTIVE');
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ INSTANT real-time ERROR - will retry');
           // Immediate retry
           setTimeout(() => {
-            console.log('🔄 Retrying INSTANT real-time subscription...');
             requestsChannel.unsubscribe();
           }, 500); // Faster retry
         }
       });
 
     return () => {
-      console.log('🧹 Cleaning up INSTANT real-time subscription');
       requestsChannel.unsubscribe();
     };
   }, [reconnectRequests]);
 
   // DEBUG: Real-time subscription test
   useEffect(() => {
-    console.log('🔧 Setting up debug real-time subscription...');
     
     const debugChannel = supabase
       .channel('debug_requests_channel')
@@ -388,37 +304,19 @@ function App() {
           table: 'requests'
         },
         (payload) => {
-          console.log('🚨 DEBUG: Real-time request change detected!', {
-            event: payload.eventType,
-            table: payload.table,
-            hasNew: !!payload.new,
-            hasOld: !!payload.old,
-            newData: payload.new,
-            oldData: payload.old
-          });
           
           if (payload.eventType === 'INSERT') {
-            console.log('📥 New request inserted:', payload.new?.title);
           }
           if (payload.eventType === 'UPDATE') {
-            console.log('📝 Request updated:', payload.new?.title);
             if (payload.old?.is_played !== payload.new?.is_played) {
-              console.log('🎯 PLAYED STATUS CHANGED:', {
-                from: payload.old?.is_played,
-                to: payload.new?.is_played,
-                title: payload.new?.title
-              });
             }
           }
           if (payload.eventType === 'DELETE') {
-            console.log('🗑️ Request deleted');
           }
         }
       )
       .subscribe((status) => {
-        console.log('📡 DEBUG channel subscription status:', status);
         if (status === 'SUBSCRIBED') {
-          console.log('✅ DEBUG real-time subscription is active');
         } else if (status === 'CHANNEL_ERROR') {
           console.error('❌ DEBUG real-time subscription error');
         } else if (status === 'TIMED_OUT') {
@@ -429,16 +327,12 @@ function App() {
       });
 
     return () => {
-      console.log('🧹 Cleaning up debug real-time subscription');
       debugChannel.unsubscribe();
     };
   }, []);
 
   // Environment analysis
   useEffect(() => {
-    console.log('🌍 Environment Analysis:', {
-      isDev: window.location.hostname === 'localhost',
-      isStackBlitz: window.location.hostname.includes('stackblitz'),
       hostname: window.location.hostname,
       port: window.location.port,
       protocol: window.location.protocol,
@@ -451,9 +345,6 @@ function App() {
     const devPattern = /localhost|stackblitz|gitpod/;
     
     const url = import.meta.env.VITE_SUPABASE_URL || '';
-    console.log('🔍 Supabase URL Analysis:', {
-      url: url,
-      isProdUrl: prodPattern.test(url),
       isDevEnvironment: devPattern.test(window.location.hostname),
       urlHost: new URL(url).hostname
     });
@@ -466,7 +357,6 @@ function App() {
     
     if (!isDev) return; // Only run in development
     
-    console.log('🔧 Setting up development fallback polling...');
     
     let lastKnownCount = requests.length;
     
@@ -477,7 +367,6 @@ function App() {
           .select('*', { count: 'exact', head: true });
           
         if (!error && count !== null && count !== lastKnownCount) {
-          console.log(`📊 DEV POLLING: Count changed ${lastKnownCount} → ${count}`);
           lastKnownCount = count;
           reconnectRequests();
         }
@@ -487,7 +376,6 @@ function App() {
     }, 1500); // Check every 1.5 seconds in dev
     
     return () => {
-      console.log('🧹 Cleaning up dev polling');
       clearInterval(pollForChanges);
     };
   }, [requests.length, reconnectRequests]);
@@ -495,8 +383,6 @@ function App() {
   // Test the Supabase real-time connection status
   useEffect(() => {
     const checkRealtimeStatus = () => {
-      console.log('📡 Real-time connection status:', {
-        isConnected: supabase.realtime.isConnected(),
         channels: supabase.realtime.channels.length,
         connectionState: supabase.realtime.connectionState(),
         reconnectAttempts: supabase.realtime.reconnectAttempts || 0
@@ -515,9 +401,6 @@ function App() {
   // SUPABASE CONNECTION TEST
   useEffect(() => {
     const testSupabaseConnection = async () => {
-      console.log('🔍 Testing Supabase connection...');
-      console.log('URL:', import.meta.env.VITE_SUPABASE_URL);
-      console.log('Has Anon Key:', !!import.meta.env.VITE_SUPABASE_ANON_KEY);
       
       try {
         // Test basic connection
@@ -534,8 +417,6 @@ function App() {
             hint: error.hint
           });
         } else {
-          console.log('✅ Supabase connection successful!');
-          console.log('Request count:', data);
           
           // Test fetching actual requests
           try {
@@ -547,8 +428,6 @@ function App() {
             if (requestsError) {
               console.error('❌ Error fetching requests:', requestsError);
             } else {
-              console.log('✅ Sample requests fetched:', requestsData?.length || 0);
-              console.log('Sample data:', requestsData);
             }
           } catch (fetchError) {
             console.error('❌ Error in request fetch:', fetchError);
@@ -598,7 +477,6 @@ function App() {
   // Handle online/offline status
   useEffect(() => {
     const handleOnline = () => {
-      console.log('🌐 Network connection restored');
       setIsOnline(true);
       reconnectRequests();
       refreshSetLists();
@@ -606,7 +484,6 @@ function App() {
     };
 
     const handleOffline = () => {
-      console.log('🌐 Network connection lost');
       setIsOnline(false);
       toast.error('Network connection lost. You can still view cached content.');
     };
@@ -616,11 +493,9 @@ function App() {
       setIsAppActive(isVisible);
       
       if (isVisible) {
-        console.log('📱 App is now active. Refreshing data...');
         reconnectRequests();
         refreshSetLists();
       } else {
-        console.log('📱 App is now inactive');
       }
     };
 
@@ -691,9 +566,7 @@ function App() {
     const active = setLists.find(sl => sl.isActive);
     
     if (active) {
-      console.log(`Active set list updated in App: ${active.name} (${active.id})`);
     } else if (setLists.length > 0) {
-      console.log('No active set list found among', setLists.length, 'set lists');
     }
     
     setActiveSetList(active || null);
@@ -766,10 +639,9 @@ function App() {
 
   // 🚀 Enhanced song request submission with optimistic updates (KioskPage pattern)
   const handleSubmitRequest = useCallback(async (data: RequestFormData): Promise<boolean> => {
-    console.log('🎵 Submitting request with optimistic updates:', data);
-    
+    console.log('🎵 Submitting request - Source:', data.source || 'web');
+
     if (requestInProgressRef.current) {
-      console.log('Request already in progress, please wait...');
       toast.error('A request is already being processed. Please wait a moment and try again.');
       return false;
     }
@@ -787,6 +659,7 @@ function App() {
       isPlayed: false, // CRITICAL: ensure this is explicitly false
       status: 'pending',
       createdAt: new Date(),
+      source: data.source || 'web', // Track request source (kiosk or web)
       requesters: [{
         id: tempId,
         name: data.requestedBy,
@@ -798,7 +671,6 @@ function App() {
 
     // INSTANT UI UPDATE - Add to optimistic state immediately (same as KioskPage)
     setOptimisticRequests(prev => new Map([...prev, [tempId, optimisticRequest]]));
-    console.log('✨ Added optimistic request for instant UI update');
 
     try {
       // Check if the song is already requested
@@ -816,7 +688,6 @@ function App() {
       let requestId: string;
 
       if (existingRequest) {
-        console.log('🔄 Adding to existing request:', existingRequest.id);
         requestId = existingRequest.id;
         
         // Add requester to existing request
@@ -827,27 +698,36 @@ function App() {
             name: data.requestedBy,
             photo: data.userPhoto || generateDefaultAvatar(data.requestedBy),
             message: data.message?.trim().slice(0, 100) || '',
+            source: data.source || 'web', // Track request source (kiosk or web)
             created_at: new Date().toISOString()
           });
 
         if (requesterError) throw requesterError;
       } else {
-        console.log('✨ Creating new request for:', data.title);
-        
+
         // Create new request
+        const insertPayload = {
+          title: data.title,
+          artist: data.artist || '',
+          album_art_url: data.albumArtUrl || null,
+          votes: 0,
+          status: 'pending',
+          is_locked: false,
+          is_played: false,
+          source: data.source || 'web', // Track request source (kiosk or web)
+          created_at: new Date().toISOString()
+        };
+
+        console.log('📝 INSERT PAYLOAD:', JSON.stringify(insertPayload, null, 2));
+
         const { data: newRequest, error: requestError } = await supabase
           .from('requests')
-          .insert({
-            title: data.title,
-            artist: data.artist || '',
-            votes: 0,
-            status: 'pending',
-            is_locked: false,
-            is_played: false,
-            created_at: new Date().toISOString()
-          })
+          .insert(insertPayload)
           .select()
           .single();
+
+        console.log('✅ INSERTED REQUEST:', JSON.stringify(newRequest, null, 2));
+
 
         if (requestError) throw requestError;
         if (!newRequest) throw new Error('Failed to create request');
@@ -862,6 +742,7 @@ function App() {
             name: data.requestedBy,
             photo: data.userPhoto || generateDefaultAvatar(data.requestedBy),
             message: data.message?.trim().slice(0, 100) || '',
+            source: data.source || 'web', // Track request source (kiosk or web)
             created_at: new Date().toISOString()
           });
 
@@ -870,10 +751,8 @@ function App() {
 
       // DON'T remove optimistic request automatically - let real-time data replace it
       // The real-time subscription will handle updating the UI when the actual request arrives
-      console.log('✅ Request submitted successfully - letting real-time data handle UI updates');
 
       requestRetriesRef.current = 0;
-      console.log('✅ Request submitted successfully:', requestId);
       toast.success('Your request has been added to the queue!');
       return true;
     } catch (error) {
@@ -898,7 +777,6 @@ function App() {
           requestRetriesRef.current++;
           
           const delay = Math.pow(2, requestRetriesRef.current) * 1000;
-          console.log(`Automatically retrying request in ${delay/1000} seconds (attempt ${requestRetriesRef.current}/${MAX_REQUEST_RETRIES})...`);
           
           setTimeout(() => {
             if (mountedRef.current) {
@@ -939,7 +817,6 @@ function App() {
 
   // 🚀 PURE REAL-TIME: No optimistic states - direct database + real-time only
   const handleUserVote = useCallback(async (id: string, isKioskUser: boolean): Promise<boolean> => {
-    console.log('👍 PURE REAL-TIME VOTE for request:', id, 'User type:', isKioskUser ? 'kiosk' : 'logged-in');
     
     if (!isOnline) {
       toast.error('Cannot vote while offline. Please check your internet connection.');
@@ -961,7 +838,6 @@ function App() {
 
       if (isKioskUser) {
         // Kiosk users: Direct increment without user tracking
-        console.log('🏪 Kiosk vote - direct database increment');
         
         const currentRequest = requests.find(r => r.id === id);
         const newVoteCount = (currentRequest?.votes || 0) + 1;
@@ -976,11 +852,9 @@ function App() {
 
         if (error) throw error;
         success = true;
-        console.log('✅ Kiosk vote successful - real-time will update UI');
       } else {
         // Logged-in users: Check for existing vote first
         try {
-          console.log('🔄 Checking for existing vote...');
           const userId = currentUser!.id || currentUser!.name;
           
           // Check if already voted using user_votes table or fallback method
@@ -993,7 +867,6 @@ function App() {
 
           if (voteCheckError && voteCheckError.code !== 'PGRST116') {
             // user_votes table might not exist, try atomic function
-            console.log('🔄 user_votes check failed, trying atomic function...');
             const { data, error } = await supabase.rpc('add_vote', {
               p_request_id: id,
               p_user_id: userId
@@ -1001,13 +874,10 @@ function App() {
 
             if (error) throw error;
             success = data === true;
-            console.log('✅ Atomic vote result:', success);
           } else if (existingVote) {
-            console.log('❌ User already voted');
             success = false;
           } else {
             // Insert vote record and increment counter
-            console.log('📊 Adding new vote...');
             const { error: insertError } = await supabase
               .from('user_votes')
               .insert({
@@ -1050,11 +920,9 @@ function App() {
       }
 
       if (success) {
-        console.log('✅ Vote successful - real-time subscription will update UI instantly');
         toast.success(isKioskUser ? '🔥 Vote added!' : 'Vote added!');
         return true;
       } else {
-        console.log('❌ Vote rejected - already voted');
         toast.error('You have already voted for this request');
         return false;
       }
@@ -1077,7 +945,6 @@ function App() {
 
   // 🚀 INSTANT TICKER: Enhanced lock handler with immediate ticker updates
   const handleLockRequest = useCallback(async (id: string) => {
-    console.log('🔒 INSTANT LOCK: Toggling lock for request:', id);
     
     if (!isOnline) {
       toast.error('Cannot update requests while offline. Please check your internet connection.');
@@ -1093,20 +960,15 @@ function App() {
       
       // Toggle the locked status
       const newLockedState = !requestToUpdate.isLocked;
-      console.log(`🎯 INSTANT LOCK: Setting lock state to: ${newLockedState} for "${requestToUpdate.title}"`);
       
       // Try atomic database functions first, fallback to direct update
       try {
         if (newLockedState) {
-          console.log('🔄 Attempting atomic lock_request function...');
           const { error } = await supabase.rpc('lock_request', { request_id: id });
           if (error) throw error;
-          console.log('✅ Atomic lock successful');
         } else {
-          console.log('🔄 Attempting atomic unlock_request function...');
           const { error } = await supabase.rpc('unlock_request', { request_id: id });
           if (error) throw error;
-          console.log('✅ Atomic unlock successful');
         }
       } catch (atomicError) {
         console.warn('⚠️ Atomic lock function failed, using INSTANT fallback method:', atomicError);
@@ -1114,7 +976,6 @@ function App() {
         // INSTANT Fallback: Direct database update
         if (newLockedState) {
           // When locking, unlock all others first, then lock this one
-          console.log('🔄 INSTANT Fallback: Unlocking all requests first...');
           await supabase
             .from('requests')
             .update({ 
@@ -1123,7 +984,6 @@ function App() {
             })
             .neq('id', '00000000-0000-0000-0000-000000000000');
           
-          console.log('🔄 INSTANT Fallback: Locking target request...');
           const { error: lockError } = await supabase
             .from('requests')
             .update({ 
@@ -1135,7 +995,6 @@ function App() {
           if (lockError) throw lockError;
         } else {
           // When unlocking, just unlock this one
-          console.log('🔄 INSTANT Fallback: Unlocking request...');
           const { error: unlockError } = await supabase
             .from('requests')
             .update({ 
@@ -1151,13 +1010,10 @@ function App() {
       // Show success message immediately
       if (newLockedState) {
         toast.success(`🔒 "${requestToUpdate.title}" locked as next up!`);
-        console.log('🎯 TICKER UPDATE: Song locked - real-time will update ticker instantly across all users');
       } else {
         toast.success(`🔓 "${requestToUpdate.title}" unlocked`);
-        console.log('🎯 TICKER UPDATE: Song unlocked - real-time will clear ticker instantly across all users');
       }
       
-      console.log('✅ INSTANT LOCK: Lock state updated - real-time subscription will handle UI updates');
       
       // Real-time subscription will handle the updates automatically
       // No manual refresh needed - the lock change will trigger instant updates
@@ -1173,7 +1029,6 @@ function App() {
 
   // 🚀 CRITICAL FIX: Enhanced mark as played with immediate persistence
   const handleMarkPlayed = useCallback(async (id: string) => {
-    console.log('✅ Marking request as played:', id);
     
     if (!isOnline) {
       toast.error('Cannot update requests while offline. Please check your internet connection.');
@@ -1181,7 +1036,6 @@ function App() {
     }
     
     try {
-      console.log('🎯 Updating request in database...');
       
       // Use a more explicit update to ensure it persists
       const { data, error } = await supabase
@@ -1201,12 +1055,9 @@ function App() {
       }
 
       if (data && data.length > 0) {
-        console.log('✅ Request marked as played in database:', data[0]);
-        console.log('Database confirms is_played =', data[0].is_played);
         
         // Force immediate refresh to ensure UI reflects the change
         setTimeout(() => {
-          console.log('🔄 Forcing immediate refresh after marking played...');
           reconnectRequests();
         }, 100);
         
@@ -1227,7 +1078,6 @@ function App() {
 
   // 🚀 INSTANT CLEAR: Handle resetting the request queue with immediate global updates
   const handleResetQueue = useCallback(async () => {
-    console.log('🗑️ INSTANT CLEAR: Resetting request queue for ALL users');
     
     if (!isOnline) {
       toast.error('Cannot reset queue while offline. Please check your internet connection.');
@@ -1239,7 +1089,6 @@ function App() {
     }
 
     try {
-      console.log('🚨 EXECUTING INSTANT CLEAR - this will trigger real-time updates for all users');
       
       // Delete all requests - this will trigger real-time DELETE events for all users
       const { error } = await supabase
@@ -1252,7 +1101,6 @@ function App() {
       // Clear local optimistic requests immediately
       setOptimisticRequests(new Map());
       
-      console.log('✅ INSTANT CLEAR executed - real-time subscriptions will update all users instantly');
       toast.success('🗑️ Queue cleared for all users!');
       
       // The real-time subscription will handle updating the UI for all users
@@ -1268,8 +1116,8 @@ function App() {
   }, [isOnline, reconnectRequests]);
 
   // Handle adding a new song
-  const handleAddSong = useCallback((song: Omit<Song, 'id'>) => {
-    setSongs(prev => [...prev, { ...song, id: uuidv4() }]);
+  const handleAddSong = useCallback((song: Song) => {
+    setSongs(prev => [...prev, song]);
   }, []);
 
   // Handle updating a song
@@ -1440,12 +1288,10 @@ function App() {
     }
     
     try {
-      console.log(`Activating/deactivating set list ${id}`);
       const setList = setLists.find(sl => sl.id === id);
       if (!setList) return;
       
       const newActiveState = !setList.isActive;
-      console.log(`Setting set list ${id} active state to: ${newActiveState}`);
       
       const { error } = await supabase
         .from('set_lists')
@@ -1536,16 +1382,6 @@ function App() {
   // Show backend if accessing /backend and authenticated
   if (isBackend && isAdmin) {
     const lockedRequest = mergedRequests.find(r => r.isLocked && !r.isPlayed);
-    console.log('🎯 Backend: Looking for locked request...', {
-      totalRequests: mergedRequests.length,
-      lockedRequest: lockedRequest ? {
-        id: lockedRequest.id,
-        title: lockedRequest.title,
-        artist: lockedRequest.artist,
-        isLocked: lockedRequest.isLocked,
-        isPlayed: lockedRequest.isPlayed
-      } : null
-    });
     
     return (
       <ErrorBoundary>
@@ -1607,10 +1443,10 @@ function App() {
                 <ErrorBoundary>
                   <div className="glass-effect rounded-lg p-6">
                     <h2 className="text-xl font-semibold neon-text mb-4">Current Request Queue</h2>
-                    <QueueView 
+                    <QueueView
                       requests={mergedRequests}
                       onLockRequest={handleLockRequest}
-                      onMarkPlayed={handleMarkPlayed}
+                      onMarkAsPlayed={handleMarkPlayed}
                       onResetQueue={handleResetQueue}
                     />
                   </div>
@@ -1660,7 +1496,7 @@ function App() {
               {activeBackendTab === 'settings' && (
                 <>
                   <ErrorBoundary>
-                    <LogoManager 
+                    <LogoManager
                       isAdmin={isAdmin}
                       currentLogoUrl={settings?.band_logo_url || null}
                       onLogoUpdate={handleLogoUpdate}
@@ -1675,6 +1511,12 @@ function App() {
                     <SettingsManager />
                   </ErrorBoundary>
                 </>
+              )}
+
+              {activeBackendTab === 'analytics' && (
+                <ErrorBoundary>
+                  <Analytics />
+                </ErrorBoundary>
               )}
             </div>
           </div>
@@ -1694,16 +1536,6 @@ function App() {
 
   // Show main frontend with merged requests and locked song for ticker
   const frontendLockedRequest = mergedRequests.find(r => r.isLocked && !r.isPlayed);
-  console.log('🎯 Frontend: Looking for locked request for ticker...', {
-    totalRequests: mergedRequests.length,
-    lockedRequest: frontendLockedRequest ? {
-      id: frontendLockedRequest.id,
-      title: frontendLockedRequest.title,
-      artist: frontendLockedRequest.artist,
-      isLocked: frontendLockedRequest.isLocked,
-      isPlayed: frontendLockedRequest.isPlayed
-    } : null
-  });
 
   return (
     <ErrorBoundary>

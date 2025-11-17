@@ -60,15 +60,6 @@ export function KioskPage({
     const userAgent = navigator.userAgent;
     const cores = navigator.hardwareConcurrency || 2;
 
-    // Log detection info for debugging
-    console.log('📱 Device Detection:', {
-      userAgent,
-      cores,
-      isIpad: /iPad/.test(userAgent),
-      isMac: /Mac/.test(userAgent),
-      isTouchDevice: 'ontouchstart' in window
-    });
-
     // Detect older iPads (iPad Air 2, iPad Mini 2-4, older iOS versions)
     // Modern iPadOS might report as Mac, so check for touch + Mac + low cores
     const isIpad = /iPad/.test(userAgent) || (/Mac/.test(userAgent) && 'ontouchstart' in window);
@@ -81,11 +72,7 @@ export function KioskPage({
       isIpad;
 
     if (isOldDevice && isIpad) {
-      console.log('🚀 Performance mode ENABLED');
-      console.log('   Reason: cores=' + cores + ', iOS=' + /OS ([9]|1[0-2])_/.test(userAgent));
       document.body.classList.add('kiosk-performance-mode');
-    } else {
-      console.log('❌ Performance mode NOT enabled');
     }
 
     return () => {
@@ -114,13 +101,12 @@ export function KioskPage({
           const cachedCount = cachedUrls.filter(Boolean).length;
 
           if (cachedCount === songsToLoad.length) {
-            console.log('✅ All images already cached, skipping preload');
             setImagesLoaded(true);
             setLoadedCount(songsToLoad.length);
             return true;
           }
         } catch (e) {
-          console.warn('Cache check failed:', e);
+          // Cache check failed, continue with preload
         }
       }
       return false;
@@ -130,8 +116,6 @@ export function KioskPage({
       // Check cache first
       const allCached = await checkCache();
       if (allCached) return;
-
-      console.log(`🎨 Preloading ${songsToLoad.length} album art images...`);
 
       const promises = songsToLoad.map((song, index) => {
         if (!song.albumArtUrl) {
@@ -155,7 +139,7 @@ export function KioskPage({
                 const response = await fetch(url);
                 await cache.put(url, response);
               } catch (e) {
-                console.warn('Failed to cache image:', e);
+                // Cache failed, continue anyway
               }
             }
 
@@ -165,7 +149,6 @@ export function KioskPage({
           img.onerror = () => {
             loaded++;
             setLoadedCount(loaded);
-            console.warn(`Failed to load image ${index}:`, url);
             resolve(); // Don't block on errors
           };
 
@@ -175,7 +158,6 @@ export function KioskPage({
 
       await Promise.all(promises);
       setImagesLoaded(true);
-      console.log(`✅ Preloaded ${loaded}/${songsToLoad.length} images`);
     };
 
     preloadImages();
@@ -246,7 +228,8 @@ export function KioskPage({
         albumArtUrl: selectedSong.albumArtUrl,
         requestedBy: userName.trim(),
         userPhoto: generateDefaultAvatar(userName.trim()),
-        message: message.trim()
+        message: message.trim(),
+        source: 'kiosk' // Track that this request came from kiosk
       };
 
       const success = await onSubmitRequest(requestData);
@@ -558,9 +541,9 @@ export function KioskPage({
       {/* Request Modal */}
       {selectedSong && isRequestModalOpen && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-gray-900 rounded-2xl max-w-md w-full border border-gray-700 shadow-2xl">
+          <div className="bg-gray-900 rounded-2xl max-w-2xl w-full border border-gray-700 shadow-2xl">
             {/* Close Button */}
-            <div className="flex justify-end p-4">
+            <div className="flex justify-end p-2">
               <button
                 onClick={() => {
                   setIsRequestModalOpen(false);
@@ -574,15 +557,15 @@ export function KioskPage({
               </button>
             </div>
 
-            <form onSubmit={(e) => { e.preventDefault(); handleSubmitRequest(); }} className="px-6 pb-6 space-y-6">
+            <form onSubmit={(e) => { e.preventDefault(); handleSubmitRequest(); }} className="px-6 pb-4 space-y-4">
               {/* Main Feature: Song Display */}
-              <div className="space-y-4">
-                <h3 className="text-center text-xl font-bold text-white">
+              <div className="space-y-2">
+                <h3 className="text-center text-lg font-bold text-white">
                   You Are Requesting
                 </h3>
 
-                <div className="bg-gray-800/50 rounded-xl p-6 space-y-4">
-                  <div className="flex flex-col items-center space-y-4">
+                <div className="bg-gray-800/50 rounded-xl p-3 space-y-2">
+                  <div className="flex flex-col items-center space-y-2">
                     <div className="flex-shrink-0">
                       <AlbumArtDisplay
                         song={selectedSong}
@@ -591,14 +574,14 @@ export function KioskPage({
                       />
                     </div>
                     <div className="text-center w-full">
-                      <h3 className="font-bold text-white text-2xl mb-2">
+                      <h3 className="font-bold text-white text-xl mb-1">
                         {selectedSong.title}
                       </h3>
                       {selectedSong.artist && (
-                        <p className="text-gray-300 text-lg mb-1">by {selectedSong.artist}</p>
+                        <p className="text-gray-300 text-base mb-0.5">by {selectedSong.artist}</p>
                       )}
                       {selectedSong.genre && (
-                        <p className="text-gray-400 text-sm">{selectedSong.genre}</p>
+                        <p className="text-gray-400 text-xs">{selectedSong.genre}</p>
                       )}
                     </div>
                   </div>
@@ -607,7 +590,7 @@ export function KioskPage({
 
               {/* Name Input - Highlighted */}
               <div className="space-y-2">
-                <label htmlFor="userName" className="block text-sm font-medium text-white">
+                <label htmlFor="userName" className="block text-2xl font-bold text-white">
                   Your Name <span className="text-red-400">*</span>
                 </label>
                 <input
@@ -628,7 +611,7 @@ export function KioskPage({
               </div>
 
               {/* Message Input */}
-              <div className="space-y-2">
+              <div className="space-y-1">
                 <label htmlFor="message" className="block text-sm font-medium text-gray-300">
                   Optional Message
                 </label>
@@ -642,9 +625,9 @@ export function KioskPage({
                     }
                   }}
                   placeholder="Add a special message with your request..."
-                  rows={3}
+                  rows={2}
                   disabled={isSubmitting}
-                  className="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:border-transparent resize-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="w-full px-4 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:border-transparent resize-none disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   style={{
                     ['--tw-ring-color' as any]: accentColor
                   }}
@@ -661,7 +644,7 @@ export function KioskPage({
               <button
                 type="submit"
                 disabled={isSubmitting || !userName.trim()}
-                className="w-full text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center space-x-2"
+                className="w-full text-white font-bold py-3 px-6 rounded-xl transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center space-x-2"
                 style={{
                   background: isSubmitting || !userName.trim()
                     ? 'linear-gradient(to right, #4b5563, #4b5563)'

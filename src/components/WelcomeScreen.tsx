@@ -39,9 +39,9 @@ export function WelcomeScreen({ onStart, logoUrl, bandName = 'Band Name', accent
       </div>
 
       {/* Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6 py-12">
+      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-6">
         {/* Logo Section */}
-        <div className="logo-container mb-8 animate-fadeInDown">
+        <div className="logo-container mb-4 animate-fadeInDown">
           <div className="relative">
             <div
               className="absolute inset-0 blur-3xl opacity-50 animate-pulse"
@@ -49,11 +49,11 @@ export function WelcomeScreen({ onStart, logoUrl, bandName = 'Band Name', accent
             ></div>
             <Logo
               url={logoUrl}
-              className="h-32 md:h-40 relative z-10 drop-shadow-2xl"
+              className="h-16 md:h-40 relative z-10 drop-shadow-2xl"
             />
           </div>
           <h2
-            className="text-4xl md:text-5xl font-bold mt-6 text-center"
+            className="text-xl md:text-5xl font-bold mt-2 text-center"
             style={{ color: accentColor }}
           >
             {bandName}
@@ -61,15 +61,15 @@ export function WelcomeScreen({ onStart, logoUrl, bandName = 'Band Name', accent
         </div>
 
         {/* Main Message */}
-        <div className="text-center max-w-3xl mb-12 animate-fadeInUp space-y-8">
+        <div className="text-center max-w-3xl mb-6 animate-fadeInUp space-y-3">
           <div className="relative">
-            <h1 className="text-4xl md:text-6xl font-black mb-8 leading-tight">
-              <span className="text-gray-100 drop-shadow-lg">
+            <h1 className="text-xl md:text-6xl font-black mb-3 leading-tight">
+              <span className="text-gray-100 drop-shadow-lg text-base md:text-5xl">
                 Welcome to the
               </span>
               <br />
               <span
-                className="text-5xl md:text-7xl font-black"
+                className="text-2xl md:text-7xl font-black"
                 style={{ color: accentColor }}
               >
                 ALL REQUEST EXPERIENCE
@@ -78,11 +78,11 @@ export function WelcomeScreen({ onStart, logoUrl, bandName = 'Band Name', accent
           </div>
 
           {/* Description */}
-          <p className="text-xl md:text-2xl text-gray-200 leading-relaxed animate-fadeInUp" style={{ animationDelay: '0.4s' }}>
+          <p className="text-sm md:text-2xl text-gray-200 leading-snug animate-fadeInUp" style={{ animationDelay: '0.4s' }}>
             You shape the show. Make as many requests as you like and upvote your favorites.
             <br />
             <span
-              className="font-bold text-2xl md:text-3xl"
+              className="font-bold text-base md:text-3xl"
               style={{ color: accentColor }}
             >
               The most requested songs by the audience will be played.
@@ -93,7 +93,7 @@ export function WelcomeScreen({ onStart, logoUrl, bandName = 'Band Name', accent
         {/* CTA Button */}
         <button
           onClick={onStart}
-          className="cta-button group relative px-12 py-5 text-xl md:text-2xl font-bold rounded-full overflow-hidden transition-all duration-300 hover:scale-110 hover:shadow-2xl animate-fadeInUp"
+          className="cta-button group relative px-8 py-3 text-base md:text-2xl font-bold rounded-full overflow-hidden transition-all duration-300 hover:scale-110 hover:shadow-2xl animate-fadeInUp"
           style={{
             animationDelay: '0.6s',
             background: accentColor,
