@@ -60,17 +60,32 @@ export function KioskPage({
     const userAgent = navigator.userAgent;
     const cores = navigator.hardwareConcurrency || 2;
 
+    // Log detection info for debugging
+    console.log('📱 Device Detection:', {
+      userAgent,
+      cores,
+      isIpad: /iPad/.test(userAgent),
+      isMac: /Mac/.test(userAgent),
+      isTouchDevice: 'ontouchstart' in window
+    });
+
     // Detect older iPads (iPad Air 2, iPad Mini 2-4, older iOS versions)
-    const isOldIpad = /iPad/.test(userAgent) && (
+    // Modern iPadOS might report as Mac, so check for touch + Mac + low cores
+    const isIpad = /iPad/.test(userAgent) || (/Mac/.test(userAgent) && 'ontouchstart' in window);
+    const isOldDevice =
       // iOS 9-12 (older versions)
       /OS ([9]|1[0-2])_/.test(userAgent) ||
-      // Low CPU cores (2 or less typically indicates older hardware)
-      cores <= 2
-    );
+      // Low CPU cores (3 or less for iPad Air 2 with 3 cores)
+      cores <= 3 ||
+      // Force enable for all iPads for testing (we can refine later)
+      isIpad;
 
-    if (isOldIpad) {
-      console.log('🚀 Performance mode enabled for older device');
+    if (isOldDevice && isIpad) {
+      console.log('🚀 Performance mode ENABLED');
+      console.log('   Reason: cores=' + cores + ', iOS=' + /OS ([9]|1[0-2])_/.test(userAgent));
       document.body.classList.add('kiosk-performance-mode');
+    } else {
+      console.log('❌ Performance mode NOT enabled');
     }
 
     return () => {
