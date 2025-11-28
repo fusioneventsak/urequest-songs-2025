@@ -1,9 +1,9 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { X, AlertTriangle, Music, User } from 'lucide-react';
-import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
-import type { Song, User as UserType } from '../types';
-import { usePhotoStorage } from '../hooks/usePhotoStorage';
-import { useUiSettings } from '../hooks/useUiSettings';
+import { AlbumArtDisplay } from '../shared/AlbumArtDisplay';
+import type { Song, User as UserType } from '../../types';
+import { usePhotoStorage } from '../../hooks/usePhotoStorage';
+import { useUiSettings } from '../../hooks/useUiSettings';
 import toast from 'react-hot-toast';
 
 interface RequestModalProps {

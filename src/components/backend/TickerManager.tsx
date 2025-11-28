@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Type, Music } from 'lucide-react';
-import { useUiSettings } from '../hooks/useUiSettings';
+import { useUiSettings } from '../../hooks/useUiSettings';
 
 // Define the TickerManagerProps interface
 interface TickerManagerProps {

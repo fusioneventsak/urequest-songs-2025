@@ -5,7 +5,11 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Missing Supabase environment variables');
+  console.error('❌ Missing Supabase environment variables');
+  console.error('VITE_SUPABASE_URL:', supabaseUrl ? 'Set' : 'MISSING');
+  console.error('VITE_SUPABASE_ANON_KEY:', supabaseAnonKey ? 'Set' : 'MISSING');
+  // Don't throw - allow app to load with fallback
+  // throw new Error('Missing Supabase environment variables');
 }
 
 // Log connection details for debugging
@@ -19,7 +23,10 @@ console.log('Connecting to Supabase:', {
 const POOL_SIZE = 10;
 const CONNECTION_TIMEOUT = 30000; // 30 seconds
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+let supabaseClient: any = null;
+
+try {
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
@@ -45,12 +52,28 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     }
   },
   db: {
-    schema: 'public',
-    // Configure connection pooling
-    poolSize: POOL_SIZE,
-    connectionTimeout: CONNECTION_TIMEOUT
+    schema: 'public'
   }
-});
+  });
+  console.log('✅ Supabase client initialized successfully');
+} catch (error) {
+  console.error('❌ Failed to initialize Supabase client:', error);
+  // Create a mock client that won't crash the app
+  supabaseClient = {
+    from: () => ({
+      select: () => Promise.resolve({ data: [], error: new Error('Supabase not initialized') }),
+      insert: () => Promise.resolve({ data: null, error: new Error('Supabase not initialized') }),
+      update: () => Promise.resolve({ data: null, error: new Error('Supabase not initialized') }),
+      delete: () => Promise.resolve({ data: null, error: new Error('Supabase not initialized') })
+    }),
+    channel: () => ({
+      on: () => ({ subscribe: () => {} }),
+      subscribe: () => {}
+    })
+  };
+}
+
+export const supabase = supabaseClient;
 
 // Log Supabase configuration for debugging
 console.log('Supabase configuration:', {
@@ -60,6 +83,7 @@ console.log('Supabase configuration:', {
                !window.location.hostname.includes('stackblitz') &&
                !window.location.hostname.includes('127.0.0.1')
 });
+
 // Helper function to handle Supabase errors
 export function handleSupabaseError(error: any): never {
   console.error('Supabase error:', error);

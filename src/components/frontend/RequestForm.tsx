@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Music } from 'lucide-react';
-import type { RequestFormData } from '../types';
+import type { RequestFormData } from '../../types';
 
 interface RequestFormProps {
   onSubmit: (data: RequestFormData) => void;

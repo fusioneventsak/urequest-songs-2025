@@ -1,10 +1,10 @@
 import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { Plus, Edit2, Trash2, X, Upload, Loader2, Filter, Tag, ChevronDown, ChevronUp } from 'lucide-react';
-import { supabase } from '../utils/supabase';
-import { searchITunes } from '../utils/itunes';
-import { SongEditorModal } from './SongEditorModal';
-import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
-import type { Song } from '../types';
+import { supabase } from '../../utils/supabase';
+import { searchITunes } from '../../utils/itunes';
+import { SongEditorModal } from '../SongEditorModal';
+import { AlbumArtDisplay } from '../shared/AlbumArtDisplay';
+import type { Song } from '../../types';
 
 interface SongLibraryProps {
   songs: Song[];

@@ -50,9 +50,6 @@ export function useRequestSync({
       return;
     }
     
-    // Check cache first
-    if (!bypassCache && cacheRef.current) {
-      const { data, timestamp } = cacheRef.current;
       if (data) {
         const age = Date.now() - timestamp;
         
@@ -207,11 +204,22 @@ export function useRequestSync({
     }
   }, [setRequests]);
   
-  // Setup real-time subscription with debouncing
+  // Setup real-time subscription with debouncing and timeout
   useEffect(() => {
     let debounceTimer: NodeJS.Timeout | null = null;
+    let fetchTimeoutId: NodeJS.Timeout | null = null;
 
     const setupSubscription = () => {
+      // Add timeout to prevent infinite waiting for initial fetch
+      fetchTimeoutId = setTimeout(() => {
+        if (fetchInProgressRef.current) {
+          console.warn('⚠️ Request sync fetch timeout - data may be incomplete');
+          fetchInProgressRef.current = false;
+          if (mountedRef.current) {
+            setIsLoading(false);
+          }
+        }
+      }, 7000); // 7 second timeout for initial fetch
       // Clean up existing subscription
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe(); 
@@ -294,11 +302,17 @@ export function useRequestSync({
         });
     };
 
-    if (isOnline) setupSubscription(); 
+    if (isOnline) {
+      console.log('🔄 Setting up real-time subscription for requests');
+      setupSubscription();
+    }
 
     return () => {
       if (debounceTimer) {
         clearTimeout(debounceTimer);
+      }
+      if (fetchTimeoutId) {
+        clearTimeout(fetchTimeoutId);
       }
       if (subscriptionRef.current) {
         subscriptionRef.current.unsubscribe();

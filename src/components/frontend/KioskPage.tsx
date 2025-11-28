@@ -1,17 +1,17 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Music4, ThumbsUp, X, AlertTriangle, Music, User, Camera } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Logo } from './shared/Logo';
-import { SongList } from './SongList';
+import { Logo } from '../shared/Logo';
+import { SongList } from '../SongList';
 import { UpvoteList } from './UpvoteList';
-import { Ticker } from './Ticker';
-import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
-import { BackToTopButton } from './shared/BackToTopButton';
-import { generateDefaultAvatar } from '../utils/photoStorage';
-import { supabase } from '../utils/supabase';
-import { useUiSettings } from '../hooks/useUiSettings';
+import { Ticker } from '../Ticker';
+import { AlbumArtDisplay } from '../shared/AlbumArtDisplay';
+import { BackToTopButton } from '../shared/BackToTopButton';
+import { generateDefaultAvatar } from '../../utils/photoStorage';
+import { supabase } from '../../utils/supabase';
+import { useUiSettings } from '../../hooks/useUiSettings';
 import toast from 'react-hot-toast';
-import type { Song, SongRequest, RequestFormData, SetList } from '../types';
+import type { Song, SongRequest, RequestFormData, SetList } from '../../types';
 
 interface KioskPageProps {
   songs: Song[];

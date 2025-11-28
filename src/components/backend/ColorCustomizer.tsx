@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Save, Palette, RefreshCw, EyeIcon } from 'lucide-react';
-import { useUiSettings } from '../hooks/useUiSettings';
+import { useUiSettings } from '../../hooks/useUiSettings';
 
 interface ColorCustomizerProps {
   isAdmin?: boolean;

@@ -1,13 +1,13 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { ThumbsUp, Lock, CheckCircle2, ChevronDown, ChevronUp, Users, UserCircle, Maximize2, MessageCircle, FileText, Flame } from 'lucide-react';
-import { supabase } from '../utils/supabase';
-import { useUiSettings } from '../hooks/useUiSettings';
-import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
-import { EnlargeModal } from './EnlargeModal';
-import { LyricsModal } from './LyricsModal';
+import { supabase } from '../../utils/supabase';
+import { useUiSettings } from '../../hooks/useUiSettings';
+import { AlbumArtDisplay } from '../shared/AlbumArtDisplay';
+import { EnlargeModal } from '../EnlargeModal';
+import { LyricsModal } from '../LyricsModal';
 import { format } from 'date-fns';
 import toast from 'react-hot-toast';
-import type { SongRequest } from '../types';
+import type { SongRequest } from '../../types';
 
 interface QueueViewProps {
   requests: SongRequest[];

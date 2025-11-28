@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { Camera, User as UserIcon, AlertTriangle, UserCircle } from 'lucide-react';
-import { resizeAndCompressImage, getOptimalCameraConstraints, getOptimalFileInputAccept, supportsHighQualityCapture } from '../utils/imageUtils';
-import { dataURLtoBlob } from '../utils/photoStorage';
-import { usePhotoStorage } from '../hooks/usePhotoStorage';
-import { useUiSettings } from '../hooks/useUiSettings';
-import { Logo } from './shared/Logo';
-import type { User } from '../types';
+import { resizeAndCompressImage, getOptimalCameraConstraints, getOptimalFileInputAccept, supportsHighQualityCapture } from '../../utils/imageUtils';
+import { dataURLtoBlob } from '../../utils/photoStorage';
+import { usePhotoStorage } from '../../hooks/usePhotoStorage';
+import { useUiSettings } from '../../hooks/useUiSettings';
+import { Logo } from '../shared/Logo';
+import type { User } from '../../types';
 
 interface LandingPageProps {
   onComplete: (user: User) => void;

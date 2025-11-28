@@ -1,6 +1,8 @@
 // Service Worker for uRequest Live PWA
 const CACHE_NAME = 'urequest-live-v2';
 const RUNTIME_CACHE = 'urequest-runtime-v2';
+const MAX_CACHE_SIZE = 50; // Maximum number of items in runtime cache
+const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
@@ -11,6 +13,20 @@ const PRECACHE_ASSETS = [
   '/queue',
   '/manifest.json'
 ];
+
+// Helper function to clean up old cache entries
+async function cleanupCache(cacheName) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  
+  if (keys.length > MAX_CACHE_SIZE) {
+    // Delete oldest entries
+    const entriesToDelete = keys.slice(0, keys.length - MAX_CACHE_SIZE);
+    for (const request of entriesToDelete) {
+      await cache.delete(request);
+    }
+  }
+}
 
 // Install event - cache core assets
 self.addEventListener('install', (event) => {
@@ -71,6 +87,7 @@ self.addEventListener('fetch', (event) => {
 
           caches.open(RUNTIME_CACHE).then((cache) => {
             cache.put(request, responseToCache);
+            cleanupCache(RUNTIME_CACHE);
           });
 
           return response;
@@ -100,6 +117,7 @@ self.addEventListener('fetch', (event) => {
           if (response && response.status === 200) {
             caches.open(RUNTIME_CACHE).then((cache) => {
               cache.put(request, response);
+              cleanupCache(RUNTIME_CACHE);
             });
           }
         }).catch(() => {
@@ -121,6 +139,7 @@ self.addEventListener('fetch', (event) => {
 
         caches.open(RUNTIME_CACHE).then((cache) => {
           cache.put(request, responseToCache);
+          cleanupCache(RUNTIME_CACHE);
         });
 
         return response;

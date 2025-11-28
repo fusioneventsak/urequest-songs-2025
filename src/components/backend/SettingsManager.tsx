@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, Upload, Loader2, QrCode, Palette, RefreshCw } from 'lucide-react';
 import { LogoUploader } from './LogoUploader';
-import { useUiSettings } from '../hooks/useUiSettings';
+import { useUiSettings } from '../../hooks/useUiSettings';
 
 // Reusable color picker component with gradient support
 interface ColorPickerWithGradientProps {

@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { supabase } from '../utils/supabase';
+import { supabase } from '../../utils/supabase';
 import { BarChart3, Users, Music, TrendingUp, Calendar, Award, Activity, CheckCircle2, Smartphone } from 'lucide-react';
 import { format, startOfDay, endOfDay, subDays, parseISO } from 'date-fns';
-import type { SongRequest } from '../types';
+import type { SongRequest } from '../../types';
 
 interface AnalyticsData {
   totalUsers: number;

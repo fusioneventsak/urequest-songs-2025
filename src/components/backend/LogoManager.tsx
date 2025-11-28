@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, Image } from 'lucide-react';
 import { LogoUploader } from './LogoUploader';
-import { useUiSettings } from '../hooks/useUiSettings';
+import { useUiSettings } from '../../hooks/useUiSettings';
 
 interface LogoManagerProps {
   isAdmin?: boolean;

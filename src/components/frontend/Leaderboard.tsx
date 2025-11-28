@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../utils/supabase';
+import { supabase } from '../../utils/supabase';
 import { Trophy, Users, Award, Medal, Crown, Sparkles } from 'lucide-react';
-import { useUiSettings } from '../hooks/useUiSettings';
+import { useUiSettings } from '../../hooks/useUiSettings';
 
 interface TopRequester {
   name: string;

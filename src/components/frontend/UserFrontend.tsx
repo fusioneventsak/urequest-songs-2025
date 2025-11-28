@@ -1,16 +1,16 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { Music4, ThumbsUp, UserCircle, Settings, Camera } from 'lucide-react';
-import { Logo } from './shared/Logo';
-import { SongList } from './SongList';
+import { Logo } from '../shared/Logo';
+import { SongList } from '../SongList';
 import { UpvoteList } from './UpvoteList';
 import { RequestModal } from './RequestModal';
 import { LandingPage } from './LandingPage';
-import { WelcomeScreen } from './WelcomeScreen';
-import { Ticker } from './Ticker';
-import { BackToTopButton } from './shared/BackToTopButton';
-import { useUiSettings } from '../hooks/useUiSettings';
+import { WelcomeScreen } from '../WelcomeScreen';
+import { Ticker } from '../Ticker';
+import { BackToTopButton } from '../shared/BackToTopButton';
+import { useUiSettings } from '../../hooks/useUiSettings';
 import toast from 'react-hot-toast';
-import type { Song, SongRequest, User, RequestFormData } from '../types';
+import type { Song, SongRequest, User, RequestFormData } from '../../types';
 
 interface UserFrontendProps {
   songs: Song[];

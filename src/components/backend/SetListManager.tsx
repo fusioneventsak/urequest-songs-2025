@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { Plus, Save, Trash2, Music4, Check, Edit2, X, Search, Loader2, Play, AlertCircle, Filter, Tags, ChevronDown, ChevronUp } from 'lucide-react';
-import { supabase } from '../utils/supabase';
-import type { Song, SetList } from '../types';
+import { supabase } from '../../utils/supabase';
+import type { Song, SetList } from '../../types';
 
 interface SetListManagerProps {
   songs: Song[];

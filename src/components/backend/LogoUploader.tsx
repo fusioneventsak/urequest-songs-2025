@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Check, X, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
-import { uploadBandLogo, dataURLtoBlob, isValidImageType } from '../utils/uploadLogo';
+import { uploadBandLogo, dataURLtoBlob, isValidImageType } from '../../utils/uploadLogo';
 
 interface LogoUploaderProps {
   currentLogoUrl?: string | null;

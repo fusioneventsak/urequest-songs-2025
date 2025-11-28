@@ -3,18 +3,18 @@ import { supabase } from './utils/supabase';
 import type { Song, SongRequest, RequestFormData, SetList, User } from './types';
 
 console.log('🔥🔥🔥 APP.TSX FILE LOADED - FRESH CODE 🔥🔥🔥');
-import { LandingPage } from './components/LandingPage';
-import { UserFrontend } from './components/UserFrontend';
-import { BackendLogin } from './components/BackendLogin'; 
-import { SongLibrary } from './components/SongLibrary';
-import { SetListManager } from './components/SetListManager';
-import { QueueView } from './components/QueueView';
-import { TickerManager } from './components/TickerManager';
-import { LogoManager } from './components/LogoManager';
-import { ColorCustomizer } from './components/ColorCustomizer';
-import { SettingsManager } from './components/SettingsManager';
-import { BackendTabs } from './components/BackendTabs';
-import { Analytics } from './components/Analytics';
+import { LandingPage } from './components/frontend/LandingPage';
+import { UserFrontend } from './components/frontend/UserFrontend';
+import { BackendLogin } from './components/backend/BackendLogin'; 
+import { SongLibrary } from './components/backend/SongLibrary';
+import { SetListManager } from './components/backend/SetListManager';
+import { QueueView } from './components/backend/QueueView';
+import { TickerManager } from './components/backend/TickerManager';
+import { LogoManager } from './components/backend/LogoManager';
+import { ColorCustomizer } from './components/backend/ColorCustomizer';
+import { SettingsManager } from './components/backend/SettingsManager';
+import { BackendTabs } from './components/backend/BackendTabs';
+import { Analytics } from './components/backend/Analytics';
 import { ErrorBoundary } from './components/shared/ErrorBoundary';
 import { useRequestSync } from './hooks/useRequestSync'; // Debug transform source field
 import { useSongSync } from './hooks/useSongSync';
@@ -25,8 +25,8 @@ import { LoadingSpinner } from './components/shared/LoadingSpinner';
 import { LoadingPreloader } from './components/shared/LoadingPreloader';
 import { LogOut } from 'lucide-react';
 import { Logo } from './components/shared/Logo';
-import { KioskPage } from './components/KioskPage';
-import { Leaderboard } from './components/Leaderboard';
+import { KioskPage } from './components/frontend/KioskPage';
+import { Leaderboard } from './components/frontend/Leaderboard';
 import toast from 'react-hot-toast';
 
 const DEFAULT_BAND_LOGO = "https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png";
@@ -202,17 +202,30 @@ function App() {
     };
   }, []);
 
-  // Enforce minimum preloader display time (3 seconds)
+  // Enforce minimum preloader display time (3 seconds) with aggressive fallback timeouts
   useEffect(() => {
     const MIN_LOAD_TIME = 3000; // 3 seconds
-    const timer = setTimeout(() => {
+    const MAX_LOAD_TIME = 8000; // 8 seconds fallback - force show app even if loading
+    
+    const minTimer = setTimeout(() => {
       setMinLoadTimePassed(true);
+      console.log('✅ Minimum load time passed');
     }, MIN_LOAD_TIME);
 
-    return () => clearTimeout(timer);
+    // Fallback: force show app after 8 seconds regardless of loading state
+    const maxTimer = setTimeout(() => {
+      console.warn('⚠️ Forcing app to load after 8 seconds (possible Supabase connection issue)');
+      setMinLoadTimePassed(true);
+      setIsInitializing(false);
+    }, MAX_LOAD_TIME);
+
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(maxTimer);
+    };
   }, []);
 
-  // Check auth state
+  // Check auth state with timeout
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -233,7 +246,15 @@ function App() {
       }
     };
 
-    checkAuth();
+    // Add timeout to prevent infinite waiting
+    const timeoutId = setTimeout(() => {
+      console.warn('⚠️ Auth check timeout - forcing initialization complete');
+      setIsInitializing(false);
+    }, 5000);
+
+    checkAuth().finally(() => clearTimeout(timeoutId));
+    
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Update active set list when set lists change
@@ -868,6 +889,11 @@ function App() {
   const shouldShowLoader = isInitializing || settingsLoading || !minLoadTimePassed;
 
   if (shouldShowLoader) {
+    // Debug logging
+    if (isInitializing || settingsLoading) {
+      console.log('⏳ Still loading:', { isInitializing, settingsLoading, minLoadTimePassed });
+    }
+    
     // Show branded preloader for minimum 3 seconds
     return (
       <LoadingPreloader
@@ -910,6 +936,9 @@ function App() {
         </ErrorBoundary>
       );
     }
+
+    // Show loading state if data is still being fetched
+    const isLoadingData = songs.length === 0 && requests.length === 0 && setLists.length === 0;
 
     return (
       <ErrorBoundary>
@@ -955,7 +984,20 @@ function App() {
             onTabChange={setActiveBackendTab} 
           />
 
+          {/* Loading State */}
+          {isLoadingData && (
+            <div className="flex items-center justify-center min-h-96">
+              <div className="text-center">
+                <div className="inline-block">
+                  <div className="w-12 h-12 border-4 border-gray-700 border-t-purple-500 rounded-full animate-spin mb-4"></div>
+                </div>
+                <p className="text-gray-400">Loading dashboard data...</p>
+              </div>
+            </div>
+          )}
+
           {/* Content */}
+          {!isLoadingData && (
           <div className="p-6">
             {activeBackendTab === 'requests' && (
               <QueueView
@@ -1011,6 +1053,7 @@ function App() {
               <Analytics />
             )}
           </div>
+        )}
         </div>
       </ErrorBoundary>
     );

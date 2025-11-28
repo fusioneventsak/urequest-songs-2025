@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ThumbsUp, Check, X, Music2, MessageCircle, Users, Maximize2, Flame } from 'lucide-react';
-import { EnlargeModal } from './EnlargeModal';
-import type { SongRequest } from '../types';
+import { EnlargeModal } from '../EnlargeModal';
+import type { SongRequest } from '../../types';
 
 interface RequestListProps {
   requests: SongRequest[];

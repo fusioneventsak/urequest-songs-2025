@@ -5,6 +5,21 @@ import App from './App';
 import './index.css';
 import { registerServiceWorker, promptPWAInstall, getPWADisplayMode } from './utils/registerSW';
 
+// Suppress dev-only errors from browser extensions and React Fast Refresh
+if (import.meta.env.DEV) {
+  // Suppress "Could not establish connection" errors from extensions
+  const originalError = console.error;
+  console.error = function(...args: any[]) {
+    const message = args[0]?.toString?.() || '';
+    if (message.includes('Could not establish connection') || 
+        message.includes('Receiving end does not exist') ||
+        message.includes('@react-refresh')) {
+      return; // Silently ignore these dev-only errors
+    }
+    originalError.apply(console, args);
+  };
+}
+
 // Register service worker for PWA support
 registerServiceWorker();
 

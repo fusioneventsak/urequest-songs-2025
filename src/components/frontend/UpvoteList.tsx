@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Music4, ThumbsUp, UserCircle, Users, Crown, Zap, Music } from 'lucide-react';
-import { useUiSettings } from '../hooks/useUiSettings';
-import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
-import type { SongRequest } from '../types';
+import { useUiSettings } from '../../hooks/useUiSettings';
+import { AlbumArtDisplay } from '../shared/AlbumArtDisplay';
+import type { SongRequest } from '../../types';
 import toast from 'react-hot-toast';
 
 interface UpvoteListProps {
