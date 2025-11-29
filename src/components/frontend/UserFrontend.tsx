@@ -423,7 +423,7 @@ export function UserFrontend({
                 : ''
             }`}
           >
-            <Music4
+            <Music
               className="w-6 h-6 mb-1"
               style={{ color: activeTab === 'requests' ? accentColor : highlightColor }}
             />

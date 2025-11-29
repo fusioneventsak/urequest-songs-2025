@@ -1,5 +1,3 @@
-import { Music4 } from 'lucide-react';
-
 // iTunes API search interface
 export interface iTunesSearchResult {
   resultCount: number;
