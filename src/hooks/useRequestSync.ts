@@ -50,6 +50,9 @@ export function useRequestSync({
       return;
     }
     
+    // Check cache if not bypassing
+    if (!bypassCache && cacheRef.current) {
+      const { data, timestamp } = cacheRef.current;
       if (data) {
         const age = Date.now() - timestamp;
         
@@ -61,7 +64,7 @@ export function useRequestSync({
           return;
         }
       }
-    } 
+    }
     
     fetchInProgressRef.current = true;
     
