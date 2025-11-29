@@ -1067,8 +1067,7 @@ function App() {
     }
     console.log('✅ [App] Showing dashboard (authenticated) - User:', currentUser.name, 'Email:', currentUser.email);
 
-    // Show loading state if data is still being fetched
-    const isLoadingData = songs.length === 0 && requests.length === 0 && setLists.length === 0;
+    // Note: Removed isLoadingData check - empty arrays are valid states for new users
 
     return (
       <ErrorBoundary>
@@ -1124,20 +1123,7 @@ function App() {
             onTabChange={setActiveBackendTab} 
           />
 
-          {/* Loading State */}
-          {isLoadingData && (
-            <div className="flex items-center justify-center min-h-96">
-              <div className="text-center">
-                <div className="inline-block">
-                  <div className="w-12 h-12 border-4 border-gray-700 border-t-purple-500 rounded-full animate-spin mb-4"></div>
-                </div>
-                <p className="text-gray-400">Loading dashboard data...</p>
-              </div>
-            </div>
-          )}
-
           {/* Content */}
-          {!isLoadingData && (
           <div className="p-6">
             {activeBackendTab === 'requests' && (
               <QueueView
@@ -1193,7 +1179,6 @@ function App() {
               <Analytics />
             )}
           </div>
-        )}
         </div>
       </ErrorBoundary>
     );
