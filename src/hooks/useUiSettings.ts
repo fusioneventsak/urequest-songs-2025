@@ -129,11 +129,27 @@ export function useUiSettings() {
 
   const fetchSettings = useCallback(async () => {
     try {
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('❌ No authenticated user - using default settings');
+        // Use default settings for non-authenticated users
+        const defaultSettings = { ...DEFAULT_SETTINGS, id: 'default' } as UiSettings;
+        setSettings(defaultSettings);
+        applyCssVariables(defaultSettings);
+        return;
+      }
+
+      console.log('🔄 Fetching UI settings for user:', user.id);
+
       // Add 5-second timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Settings fetch timeout')), 5000)
       );
 
+      // Fetch settings for the current user only
+      // RLS policies will automatically filter to user's data
       const fetchPromise = supabase
         .from('ui_settings')
         .select('*')
@@ -150,10 +166,13 @@ export function useUiSettings() {
       let settingsToUse: UiSettings;
       
       if (!allSettings || allSettings.length === 0) {
-        console.log("No UI settings found, creating defaults");
+        console.log("No UI settings found for user, creating defaults");
         const { data: newSettings, error: createError } = await supabase
           .from('ui_settings')
-          .insert(DEFAULT_SETTINGS)
+          .insert({
+            ...DEFAULT_SETTINGS,
+            user_id: user.id  // Associate settings with current user
+          })
           .select()
           .single();
 

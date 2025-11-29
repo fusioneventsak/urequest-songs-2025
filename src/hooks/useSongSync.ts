@@ -56,8 +56,22 @@ export function useSongSync({
         }
       }
 
-      // Fetch songs
-      console.log('Fetching songs...');
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('❌ No authenticated user - returning empty songs');
+        const emptyResult: Song[] = [];
+        if (mountedRef.current) {
+          setSongs(emptyResult);
+          cacheService.setSongs(SONGS_CACHE_KEY, emptyResult);
+        }
+        return;
+      }
+
+      // Fetch songs for the current user only
+      // RLS policies will automatically filter to user's data
+      console.log('🔄 Fetching songs for user:', user.id);
       const { data: songsData, error: songsError } = await supabase
         .from('songs')
         .select(`
@@ -68,6 +82,7 @@ export function useSongSync({
           key,
           notes,
           "albumArtUrl",
+          user_id,
           created_at,
           updated_at
         `)

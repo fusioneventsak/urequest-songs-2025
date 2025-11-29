@@ -44,7 +44,7 @@ function generateUUID(): string {
     return v.toString(16);
   });
 }
-const BACKEND_PATH = "backend";
+const DASHBOARD_PATH = "dashboard";
 const KIOSK_PATH = "kiosk";
 const LEADERBOARD_PATH = "leaderboard";
 const MAX_PHOTO_SIZE = 250 * 1024; // 250KB limit for database storage
@@ -59,9 +59,9 @@ function App() {
   // Authentication state
   const [isAdmin, setIsAdmin] = useState(false);
   const [isInitializing, setIsInitializing] = useState(!isFirstTimeUser); // Skip initialization for first-time users
-  // Check initial path immediately to set backend state correctly
+  // Check initial path immediately to set dashboard state correctly
   const initialPath = window.location.pathname;
-  const [isBackend, setIsBackend] = useState(initialPath.includes(BACKEND_PATH));
+  const [isDashboard, setIsDashboard] = useState(initialPath.includes(DASHBOARD_PATH));
   const [isKiosk, setIsKiosk] = useState(initialPath.includes(KIOSK_PATH));
   const [isLeaderboard, setIsLeaderboard] = useState(initialPath.includes(LEADERBOARD_PATH));
 
@@ -170,20 +170,20 @@ function App() {
     const checkPath = () => {
       const path = window.location.pathname;
 
-      if (path.includes(BACKEND_PATH)) {
-        setIsBackend(true);
+      if (path.includes(DASHBOARD_PATH)) {
+        setIsDashboard(true);
         setIsKiosk(false);
         setIsLeaderboard(false);
       } else if (path.includes(KIOSK_PATH)) {
         setIsKiosk(true);
-        setIsBackend(false);
+        setIsDashboard(false);
         setIsLeaderboard(false);
       } else if (path.includes(LEADERBOARD_PATH)) {
         setIsLeaderboard(true);
-        setIsBackend(false);
+        setIsDashboard(false);
         setIsKiosk(false);
       } else {
-        setIsBackend(false);
+        setIsDashboard(false);
         setIsKiosk(false);
         setIsLeaderboard(false);
       }
@@ -225,75 +225,66 @@ function App() {
     };
   }, []);
 
-  // Check auth state with timeout
+  // Check auth state using Supabase session only
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const hasAuth = localStorage.getItem('backendAuth') === 'true';
+        console.log('🔍 [Auth] Checking Supabase session...');
+        const { data: { session } } = await supabase.auth.getSession();
         
-        if (hasAuth) {
-          // Verify Supabase session is valid
-          const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          console.log('✅ [Auth] Valid Supabase session found');
+          setIsAdmin(true);
           
-          if (!session) {
-            // Session expired - clear auth
-            console.warn('⚠️ Supabase session expired - clearing auth');
-            localStorage.removeItem('backendAuth');
-            localStorage.removeItem('backendUser');
-            localStorage.removeItem('currentUser');
-            setIsAdmin(false);
-            setCurrentUser(null);
-          } else {
-            // Session valid - set user data
-            setIsAdmin(true);
+          // Get user from Supabase auth
+          const user = session.user;
+          let userEmail = user.email || '';
+          let userName = user.user_metadata?.full_name || '';
+          let userPhoto = user.user_metadata?.avatar_url || '';
+          
+          // Fetch additional profile data
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('id, email, full_name, avatar_url, role, is_active')
+            .eq('id', user.id)
+            .single();
+          
+          // Use profile data if available
+          if (profileData && !profileError) {
+            userEmail = profileData.email || userEmail;
+            userName = profileData.full_name || userName;
+            userPhoto = profileData.avatar_url || userPhoto;
             
-            // Get user from Supabase auth
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-              // Fetch user profile from database
-              const { data: profileData, error: profileError } = await supabase
-                .from('profiles')
-                .select('id, email, full_name, avatar_url')
-                .eq('id', user.id)
-                .single();
-              
-              let userEmail = user.email || '';
-              let userName = user.user_metadata?.full_name || '';
-              let userPhoto = user.user_metadata?.avatar_url || '';
-              
-              // Use profile data if available
-              if (profileData && !profileError) {
-                userEmail = profileData.email || userEmail;
-                userName = profileData.full_name || userName;
-                userPhoto = profileData.avatar_url || userPhoto;
-              }
-              
-              // Fallback to localStorage if needed
-              if (!userEmail) {
-                userEmail = localStorage.getItem('backendUser') || 'User';
-              }
-              if (!userName) {
-                userName = userEmail.split('@')[0] || 'User';
-              }
-              
-              setCurrentUser({
-                id: user.id,
-                name: userName,
-                photo: userPhoto,
-                email: userEmail
-              });
-              
-              console.log('✅ Auth verified - User:', userName, 'Email:', userEmail, 'From profiles:', !!profileData);
+            // Check if user is active
+            if (!profileData.is_active) {
+              console.warn('⚠️ [Auth] User account is deactivated');
+              await supabase.auth.signOut();
+              setIsAdmin(false);
+              setCurrentUser(null);
+              return;
             }
           }
+          
+          // Fallback for name if still empty
+          if (!userName) {
+            userName = userEmail.split('@')[0] || 'User';
+          }
+          
+          setCurrentUser({
+            id: user.id,
+            name: userName,
+            photo: userPhoto,
+            email: userEmail
+          });
+          
+          console.log('✅ [Auth] User authenticated:', userName, 'Email:', userEmail);
         } else {
+          console.log('❌ [Auth] No valid session found');
           setIsAdmin(false);
           setCurrentUser(null);
         }
       } catch (error) {
-        console.error('Auth check error:', error);
-        // On error, clear auth to be safe
-        localStorage.removeItem('backendAuth');
+        console.error('❌ [Auth] Error checking session:', error);
         setIsAdmin(false);
         setCurrentUser(null);
       } finally {
@@ -301,15 +292,27 @@ function App() {
       }
     };
 
-    // Add timeout to prevent infinite waiting
-    const timeoutId = setTimeout(() => {
-      console.warn('⚠️ Auth check timeout - forcing initialization complete');
-      setIsInitializing(false);
-    }, 5000);
+    checkAuth();
 
-    checkAuth().finally(() => clearTimeout(timeoutId));
-    
-    return () => clearTimeout(timeoutId);
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('🔄 [Auth] State changed:', event);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('✅ [Auth] User signed in');
+          await checkAuth();
+        } else if (event === 'SIGNED_OUT') {
+          console.log('👋 [Auth] User signed out');
+          setIsAdmin(false);
+          setCurrentUser(null);
+        }
+      }
+    );
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Update active set list when set lists change
@@ -325,88 +328,42 @@ function App() {
     setActiveSetList(active || null);
   }, [setLists]);
 
-  // Handle navigation to backend
-  const navigateToBackend = useCallback(() => {
-    window.history.pushState({}, '', `/${BACKEND_PATH}`);
-    setIsBackend(true);
+  // Handle navigation to dashboard
+  const navigateToDashboard = useCallback(() => {
+    window.history.pushState({}, '', `/${DASHBOARD_PATH}`);
+    setIsDashboard(true);
     setIsKiosk(false);
   }, []);
   
   // Handle navigation to frontend
   const navigateToFrontend = useCallback(() => {
     window.history.pushState({}, '', '/');
-    setIsBackend(false);
+    setIsDashboard(false);
     setIsKiosk(false);
   }, []);
   // Handle navigation to kiosk mode
   const navigateToKiosk = useCallback(() => {
     window.history.pushState({}, '', `/${KIOSK_PATH}`);
-    setIsBackend(false);
+    setIsDashboard(false);
     setIsKiosk(true);
     setIsAdmin(true);
   }, []);
 
-  // Handle admin login
+  // Handle admin login - called after successful Supabase auth
   const handleAdminLogin = useCallback(async () => {
-    localStorage.setItem('backendAuth', 'true');
-    setIsAdmin(true);
+    console.log('🔐 [Login] Admin login callback triggered');
     
-    // Fetch current user email from Supabase auth and profiles
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // Fetch user profile from database
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('id, email, full_name, avatar_url')
-          .eq('id', user.id)
-          .single();
-        
-        let userEmail = user.email || '';
-        let userName = user.user_metadata?.full_name || '';
-        let userPhoto = user.user_metadata?.avatar_url || '';
-        
-        // Use profile data if available
-        if (profileData && !profileError) {
-          userEmail = profileData.email || userEmail;
-          userName = profileData.full_name || userName;
-          userPhoto = profileData.avatar_url || userPhoto;
-        }
-        
-        // Fallback to localStorage if needed
-        if (!userEmail) {
-          userEmail = localStorage.getItem('backendUser') || 'User';
-        }
-        if (!userName) {
-          userName = userEmail.split('@')[0] || 'User';
-        }
-        
-        setCurrentUser({
-          id: user.id,
-          name: userName,
-          photo: userPhoto,
-          email: userEmail
-        });
-        
-        console.log('✅ Login - User:', userName, 'Email:', userEmail, 'From profiles:', !!profileData);
-      }
-    } catch (error) {
-      console.error('Error fetching user:', error);
-      // Fallback to localStorage
-      const backendUser = localStorage.getItem('backendUser') || 'User';
-      setCurrentUser({
-        name: backendUser.split('@')[0] || 'User',
-        photo: '',
-        email: backendUser
-      });
-    }
+    // Auth state will be updated by the onAuthStateChange listener
+    // Just show success message
+    toast.success('✅ Logged in successfully! Loading dashboard...');
   }, []);
 
   // Handle admin logout
-  const handleAdminLogout = useCallback(() => {
-    localStorage.removeItem('backendAuth');
-    localStorage.removeItem('backendUser');
+  const handleAdminLogout = useCallback(async () => {
+    console.log('👋 [Logout] Signing out...');
+    await supabase.auth.signOut();
     setIsAdmin(false);
+    setCurrentUser(null);
     navigateToFrontend();
     toast.success('Logged out successfully');
   }, [navigateToFrontend]);
@@ -1032,9 +989,9 @@ function App() {
     );
   }
 
-  // Show backend interface
-  if (isBackend) {
-    console.log('🔐 [App] Showing backend interface, isAdmin:', isAdmin, 'currentUser:', currentUser?.name);
+  // Show dashboard interface
+  if (isDashboard) {
+    console.log('🔐 [App] Showing dashboard interface, isAdmin:', isAdmin, 'currentUser:', currentUser?.name);
     if (!isAdmin || !currentUser) {
       console.log('🔑 [App] Showing BackendLogin (not authenticated)');
       return (
@@ -1043,7 +1000,7 @@ function App() {
         </ErrorBoundary>
       );
     }
-    console.log('✅ [App] Showing backend dashboard (authenticated) - User:', currentUser.name, 'Email:', currentUser.email);
+    console.log('✅ [App] Showing dashboard (authenticated) - User:', currentUser.name, 'Email:', currentUser.email);
 
     // Show loading state if data is still being fetched
     const isLoadingData = songs.length === 0 && requests.length === 0 && setLists.length === 0;
@@ -1190,7 +1147,7 @@ function App() {
         onUpdateUser={handleUserUpdate}
         onSubmitRequest={handleSubmitRequest}
         onVoteRequest={handleVoteRequest}
-        onBackendAccess={navigateToBackend}
+        onBackendAccess={navigateToDashboard}
         isAdmin={isAdmin}
         isOnline={isOnline}
         logoUrl={settings?.band_logo_url || DEFAULT_BAND_LOGO}

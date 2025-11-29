@@ -74,7 +74,22 @@ export function useSetListSync({
         }
       }
 
-      // Fetch set lists with songs - use wildcard to get all song columns
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('❌ No authenticated user - returning empty setlists');
+        const emptyResult: SetList[] = [];
+        if (mountedRef.current) {
+          setSetLists(emptyResult);
+          cacheService.set(SET_LISTS_CACHE_KEY, emptyResult);
+        }
+        return;
+      }
+
+      // Fetch set lists for the current user only
+      // RLS policies will automatically filter to user's data
+      console.log('🔄 Fetching setlists for user:', user.id);
       const { data: setListsData, error: setListsError } = await supabase
         .from('set_lists')
         .select(`
@@ -83,6 +98,7 @@ export function useSetListSync({
           date,
           notes,
           is_active,
+          user_id,
           created_at,
           set_list_songs (
             id,
@@ -94,7 +110,8 @@ export function useSetListSync({
               genre,
               key,
               notes,
-              "albumArtUrl"
+              "albumArtUrl",
+              user_id
             )
           )
         `)

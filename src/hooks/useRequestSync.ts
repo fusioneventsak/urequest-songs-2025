@@ -77,8 +77,23 @@ export function useRequestSync({
       setError(null); 
 
       // Fetch only ACTIVE requests (is_active=true) to show current queue
-      // Analytics fetches ALL requests regardless of is_active status
-      console.log('🔄 Fetching active requests with requesters...');
+      // Get current authenticated user
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.log('❌ No authenticated user - returning empty requests');
+        const emptyResult: SongRequest[] = [];
+        if (mountedRef.current) {
+          setRequests(emptyResult);
+          cacheRef.current = { data: emptyResult, timestamp: Date.now() };
+        }
+        return;
+      }
+
+      console.log('🔄 Fetching requests for user:', user.id);
+      
+      // Fetch requests that belong to the current user (via user_id)
+      // RLS policies will automatically filter to user's data
       const { data: requestsData, error: requestsError } = await supabase
         .from('requests')
         .select(`

@@ -16,9 +16,8 @@ export function BackendLogin({ onLogin }: BackendLoginProps) {
 
   // Clear any stale auth state on mount
   useEffect(() => {
-    localStorage.removeItem('backendAuth');
-    localStorage.removeItem('backendUser');
-    localStorage.removeItem('backendUserId');
+    // Clear Supabase session on mount to ensure clean login
+    supabase.auth.signOut();
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,15 +62,12 @@ export function BackendLogin({ onLogin }: BackendLoginProps) {
           }
 
           // ✅ Auto-login user after signup (no email confirmation needed)
-          localStorage.setItem('backendAuth', 'true');
-          localStorage.setItem('backendUser', email);
-          localStorage.setItem('backendUserId', data.user.id);
-          setError('');
+          setError('Account created successfully! Logging you in...');
           setEmail('');
           setPassword('');
           setFullName('');
           setIsSignUp(false);
-          // Trigger login callback
+          // Trigger login callback - Supabase session is now active
           onLogin();
         }
       } else {
@@ -107,10 +103,7 @@ export function BackendLogin({ onLogin }: BackendLoginProps) {
           // Update last login
           await supabase.rpc('update_last_login', { user_id: data.user.id });
 
-          // Set auth state and trigger callback
-          localStorage.setItem('backendAuth', 'true');
-          localStorage.setItem('backendUser', email);
-          localStorage.setItem('backendUserId', data.user.id);
+          // Trigger callback - Supabase session is now active
           onLogin();
         }
       }
@@ -126,10 +119,8 @@ export function BackendLogin({ onLogin }: BackendLoginProps) {
     }
   };
 
-  const handleClearAuth = () => {
-    localStorage.removeItem('backendAuth');
-    localStorage.removeItem('backendUser');
-    localStorage.removeItem('backendUserId');
+  const handleClearAuth = async () => {
+    await supabase.auth.signOut();
     setError('');
     setEmail('');
     setPassword('');
