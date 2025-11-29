@@ -197,12 +197,18 @@ export function UserFrontend({
 
   // Show welcome screen for first-time users
   if (showWelcome && !currentUser) {
+    // Check if this is a personal route (e.g., /john_doe)
+    const pathname = window.location.pathname;
+    const isPersonalRoute = pathname && pathname !== '/' && !pathname.includes('backend') && !pathname.includes('kiosk') && !pathname.includes('leaderboard');
+    
     return (
       <WelcomeScreen
         onStart={handleWelcomeStart}
         logoUrl={logoUrl}
         bandName={settings?.band_name || 'Band Name'}
         accentColor={accentColor}
+        isPersonalRoute={isPersonalRoute}
+        userName={isPersonalRoute ? pathname.replace(/^\//, '').replace(/_/g, ' ') : undefined}
       />
     );
   }

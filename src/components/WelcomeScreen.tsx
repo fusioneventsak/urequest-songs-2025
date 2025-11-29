@@ -6,9 +6,11 @@ interface WelcomeScreenProps {
   logoUrl: string;
   bandName?: string;
   accentColor?: string;
+  isPersonalRoute?: boolean;
+  userName?: string;
 }
 
-export function WelcomeScreen({ onStart, logoUrl, bandName = 'Band Name', accentColor = '#ff00ff' }: WelcomeScreenProps) {
+export function WelcomeScreen({ onStart, logoUrl, bandName = 'Band Name', accentColor = '#ff00ff', isPersonalRoute = false, userName }: WelcomeScreenProps) {
   // Create gradient stops for the background
   const gradientStyle = {
     background: `radial-gradient(ellipse at top, ${accentColor}40, transparent 50%), radial-gradient(ellipse at bottom, ${accentColor}20, transparent 70%), linear-gradient(to bottom, #000000, ${accentColor}15, #000000)`
@@ -56,7 +58,7 @@ export function WelcomeScreen({ onStart, logoUrl, bandName = 'Band Name', accent
             className="text-xl md:text-5xl font-bold mt-2 text-center"
             style={{ color: accentColor }}
           >
-            {bandName}
+            {isPersonalRoute && userName ? userName : bandName}
           </h2>
         </div>
 
