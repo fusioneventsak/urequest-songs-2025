@@ -419,6 +419,10 @@ function App() {
     }
     
     // Auth state will be updated by the onAuthStateChange listener
+    // Trigger data refresh
+    console.log('🔄 [Login] Triggering data refresh...');
+    reconnectSongs();
+    
     // Show success message
     toast.success('✅ Logged in successfully! Loading dashboard...');
   }, [navigateToDashboard]);
@@ -449,6 +453,74 @@ function App() {
     } catch (error) {
       console.error('Error updating user:', error);
       toast.error('Failed to update profile. Please try again.');
+    }
+  }, []);
+
+  // Song management functions
+  const handleAddSong = useCallback(async (song: Song) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('You must be logged in to add songs');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('songs')
+        .insert({
+          ...song,
+          user_id: user.id
+        });
+
+      if (error) throw error;
+      
+      toast.success('Song added successfully!');
+      // The realtime subscription will update the songs list
+    } catch (error) {
+      console.error('Error adding song:', error);
+      toast.error('Failed to add song. Please try again.');
+    }
+  }, []);
+
+  const handleUpdateSong = useCallback(async (song: Song) => {
+    try {
+      const { error } = await supabase
+        .from('songs')
+        .update({
+          title: song.title,
+          artist: song.artist,
+          genre: song.genre,
+          key: song.key,
+          notes: song.notes,
+          albumArtUrl: song.albumArtUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', song.id);
+
+      if (error) throw error;
+      
+      toast.success('Song updated successfully!');
+      // The realtime subscription will update the songs list
+    } catch (error) {
+      console.error('Error updating song:', error);
+      toast.error('Failed to update song. Please try again.');
+    }
+  }, []);
+
+  const handleDeleteSong = useCallback(async (songId: string) => {
+    try {
+      const { error } = await supabase
+        .from('songs')
+        .delete()
+        .eq('id', songId);
+
+      if (error) throw error;
+      
+      toast.success('Song deleted successfully!');
+      // The realtime subscription will update the songs list
+    } catch (error) {
+      console.error('Error deleting song:', error);
+      toast.error('Failed to delete song. Please try again.');
     }
   }, []);
 
@@ -1147,11 +1219,24 @@ function App() {
               />
             )}
             {activeBackendTab === 'songs' && (
-              <SongLibrary
-                songs={songs}
-                onSongsChange={setSongs}
-                isOnline={isOnline}
-              />
+              <>
+                <div className="mb-4 p-4 bg-gray-800 rounded-lg">
+                  <p className="text-sm text-gray-300">
+                    Debug: Songs loaded: {songs.length} | User: {currentUser?.email}
+                  </p>
+                  {songs.length > 0 && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      Sample: {songs[0]?.title} by {songs[0]?.artist}
+                    </p>
+                  )}
+                </div>
+                <SongLibrary
+                  songs={songs}
+                  onAddSong={handleAddSong}
+                  onUpdateSong={handleUpdateSong}
+                  onDeleteSong={handleDeleteSong}
+                />
+              </>
             )}
             {activeBackendTab === 'settings' && (
               <div className="space-y-8">

@@ -69,9 +69,8 @@ export function useSongSync({
         return;
       }
 
-      // Fetch songs for the current user only
-      // RLS policies will automatically filter to user's data
-      console.log('🔄 Fetching songs for user:', user.id);
+      // Fetch all songs (RLS policies should handle filtering, but for now fetch all)
+      console.log('🔄 Fetching all songs for authenticated user:', user.email);
       const { data: songsData, error: songsError } = await supabase
         .from('songs')
         .select(`
