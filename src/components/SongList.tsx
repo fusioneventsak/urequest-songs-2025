@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState, useMemo, memo } from 'react';
 import { useUiSettings } from '../hooks/useUiSettings';
 import { AlbumArtDisplay } from './shared/AlbumArtDisplay';
 import type { Song, SongRequest } from '../types';
-import { Music4, Zap } from 'lucide-react';
+import { Music, Zap } from 'lucide-react';
 
 // Memoized song card component to prevent unnecessary re-renders
 const SongCard = memo(({
@@ -63,7 +63,7 @@ const SongCard = memo(({
             />
           ) : (
             <div className="w-12 h-12 rounded-md flex items-center justify-center bg-neon-purple/20 flex-shrink-0">
-              <Music4 className="w-6 h-6" style={{ color: 'var(--accent-color)' }} />
+              <Music className="w-6 h-6" style={{ color: 'var(--accent-color)' }} />
             </div>
           )}
           <div className="flex-1 min-w-0">

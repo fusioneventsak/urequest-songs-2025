@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Music4, ThumbsUp, UserCircle, Users, Crown, Zap, Music } from 'lucide-react';
+import { Music, ThumbsUp, UserCircle, Users, Crown, Zap } from 'lucide-react';
 import { useUiSettings } from '../../hooks/useUiSettings';
 import { AlbumArtDisplay } from '../shared/AlbumArtDisplay';
 import type { SongRequest } from '../../types';
@@ -117,7 +117,7 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
   if (activeRequests.length === 0) {
     return (
       <div className="text-center py-16">
-        <Music4 className="mx-auto h-16 w-16 text-gray-500 mb-6" />
+        <Music className="mx-auto h-16 w-16 text-gray-500 mb-6" />
         <p className="text-gray-400 text-xl mb-2">No active requests to vote on</p>
         <p className="text-gray-500 text-lg">Be the first to request a song!</p>
       </div>

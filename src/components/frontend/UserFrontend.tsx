@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { Camera, User as UserIcon } from 'lucide-react';
+import { Camera, User as UserIcon, Music } from 'lucide-react';
 import { Logo } from '../shared/Logo';
 import { SongList } from '../SongList';
 import { UpvoteList } from './UpvoteList';
@@ -203,7 +203,7 @@ export function UserFrontend({
               onClick={() => setActiveTab('requests')}
               className="flex-1 max-w-xs flex flex-col items-center py-2 px-4 rounded-lg transition-all"
             >
-              <Music4
+              <Music
                 className="w-6 h-6 mb-1"
                 style={{ color: highlightColor }}
               />
@@ -388,7 +388,7 @@ export function UserFrontend({
                 />
               ) : (
                 <div className="text-center py-12">
-                  <Music4 className="mx-auto h-12 w-12 text-gray-500 mb-4" />
+                  <Music className="mx-auto h-12 w-12 text-gray-500 mb-4" />
                   <p className="text-gray-400 text-lg">
                     {searchTerm.trim()
                       ? `No songs found matching "${searchTerm}"`

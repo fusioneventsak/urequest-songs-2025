@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, User as UserIcon } from 'lucide-react';
+import { Camera, User as UserIcon, Music } from 'lucide-react';
 import { Logo } from '../shared/Logo';
 import { SongList } from '../SongList';
 import { Ticker } from '../Ticker';
@@ -463,7 +463,7 @@ export function KioskPage({
                 />
               ) : (
                 <div className="text-center py-12">
-                  <Music4 className="mx-auto h-12 w-12 text-gray-500 mb-4" />
+                  <Music className="mx-auto h-12 w-12 text-gray-500 mb-4" />
                   <p className="text-gray-400 text-lg">
                     {searchTerm.trim()
                       ? `No songs found matching "${searchTerm}"`
@@ -528,7 +528,7 @@ export function KioskPage({
                 : ''
               }`}
           >
-            <Music4
+            <Music
               className="w-6 h-6 mb-1"
               style={{ color: activeTab === 'requests' ? accentColor : highlightColor }}
             />

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Music4 } from 'lucide-react';
+import { Music } from 'lucide-react';
 import { useUiSettings } from '../../hooks/useUiSettings';
 import type { Song } from '../../types';
 
@@ -65,7 +65,7 @@ export function AlbumArtDisplay({
           ...imageStyle
         }}
       >
-        <Music4 
+        <Music 
           className={`${iconSizes[size]}`}
           style={{ color: accentColor }}
         />
@@ -83,7 +83,7 @@ export function AlbumArtDisplay({
             boxShadow: `0 0 10px ${accentColor}30`,
           }}
         >
-          <Music4
+          <Music
             className={`${iconSizes[size]} opacity-30`}
             style={{ color: accentColor }}
           />
