@@ -317,8 +317,25 @@ function App() {
         
         if (event === 'SIGNED_IN' && session?.user) {
           console.log('✅ [Auth] User signed in, checking auth and navigating to dashboard');
-          await checkAuth();
-          // Ensure we navigate to dashboard after successful sign in
+          console.log('🔄 [Auth] Session user:', session.user.email);
+          
+          // Set auth state immediately to prevent loops
+          setIsAdmin(true);
+          
+          // Create user object immediately
+          const user = session.user;
+          const userName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'User';
+          const userObject = {
+            id: user.id,
+            name: userName,
+            photo: user.user_metadata?.avatar_url || '',
+            email: user.email || ''
+          };
+          
+          console.log('🔄 [Auth] Setting currentUser immediately from session:', userObject);
+          setCurrentUser(userObject);
+          
+          // Navigate to dashboard
           console.log('🔄 [Auth] Current isDashboard state:', isDashboard);
           if (!isDashboard) {
             console.log('🔄 [Auth] Not on dashboard, navigating...');
@@ -326,6 +343,9 @@ function App() {
             setIsDashboard(true);
             setIsKiosk(false);
           }
+          
+          // Run checkAuth in background for profile enhancement (non-blocking)
+          checkAuth().catch(err => console.warn('Profile enhancement failed:', err));
         } else if (event === 'SIGNED_OUT') {
           console.log('👋 [Auth] User signed out');
           setIsAdmin(false);
