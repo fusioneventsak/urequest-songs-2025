@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, User as UserIcon, Music } from 'lucide-react';
+import { Camera, User as UserIcon, Music, ThumbsUp } from 'lucide-react';
 import { Logo } from '../shared/Logo';
 import { SongList } from '../SongList';
 import { Ticker } from '../Ticker';
