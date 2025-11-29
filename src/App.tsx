@@ -228,69 +228,94 @@ function App() {
   // Check auth state using Supabase session only
   useEffect(() => {
     const checkAuth = async () => {
-      try {
-        console.log('🔍 [Auth] Checking Supabase session...');
-        const { data: { session } } = await supabase.auth.getSession();
+    try {
+      console.log('🔍 [Auth] Checking Supabase session...');
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        console.log('✅ [Auth] Valid Supabase session found');
         
-        if (session?.user) {
-          console.log('✅ [Auth] Valid Supabase session found');
-          setIsAdmin(true);
-          
-          // Get user from Supabase auth
-          const user = session.user;
-          let userEmail = user.email || '';
-          let userName = user.user_metadata?.full_name || '';
-          let userPhoto = user.user_metadata?.avatar_url || '';
-          
-          // Fetch additional profile data
+        // Get user from Supabase auth
+        const user = session.user;
+        let userEmail = user.email || '';
+        let userName = user.user_metadata?.full_name || '';
+        let userPhoto = user.user_metadata?.avatar_url || '';
+        
+        console.log('📋 [Auth] Base user data:', { id: user.id, email: userEmail, name: userName });
+        
+        // Set user immediately with auth data
+        setIsAdmin(true);
+        
+        // Fallback for name if empty
+        if (!userName) {
+          userName = userEmail.split('@')[0] || 'User';
+        }
+        
+        const userObject = {
+          id: user.id,
+          name: userName,
+          photo: userPhoto,
+          email: userEmail
+        };
+        
+        console.log('🔄 [Auth] Setting currentUser immediately:', userObject);
+        setCurrentUser(userObject);
+        
+        // Try to fetch profile data asynchronously (non-blocking)
+        console.log('🔍 [Auth] Attempting to fetch profile data...');
+        try {
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
             .select('id, email, full_name, avatar_url, role, is_active')
             .eq('id', user.id)
             .single();
           
-          // Use profile data if available
+          console.log('📊 [Auth] Profile fetch result:', { profileData, profileError });
+          
           if (profileData && !profileError) {
-            userEmail = profileData.email || userEmail;
-            userName = profileData.full_name || userName;
-            userPhoto = profileData.avatar_url || userPhoto;
+            console.log('✅ [Auth] Profile found, updating user data');
             
             // Check if user is active
-            if (!profileData.is_active) {
+            if (profileData.is_active === false) {
               console.warn('⚠️ [Auth] User account is deactivated');
               await supabase.auth.signOut();
               setIsAdmin(false);
               setCurrentUser(null);
               return;
             }
+            
+            // Update user with profile data
+            const updatedUserObject = {
+              id: user.id,
+              name: profileData.full_name || userName,
+              photo: profileData.avatar_url || userPhoto,
+              email: profileData.email || userEmail
+            };
+            
+            console.log('🔄 [Auth] Updating currentUser with profile data:', updatedUserObject);
+            setCurrentUser(updatedUserObject);
+          } else {
+            console.log('ℹ️ [Auth] No profile data available, using auth data only');
           }
-          
-          // Fallback for name if still empty
-          if (!userName) {
-            userName = userEmail.split('@')[0] || 'User';
-          }
-          
-          setCurrentUser({
-            id: user.id,
-            name: userName,
-            photo: userPhoto,
-            email: userEmail
-          });
-          
-          console.log('✅ [Auth] User authenticated:', userName, 'Email:', userEmail);
-        } else {
-          console.log('❌ [Auth] No valid session found');
-          setIsAdmin(false);
-          setCurrentUser(null);
+        } catch (profileError) {
+          console.warn('⚠️ [Auth] Profile fetch failed, continuing with auth data:', profileError);
+          // User is already set with auth data, so continue
         }
-      } catch (error) {
-        console.error('❌ [Auth] Error checking session:', error);
+        
+        console.log('✅ [Auth] User authentication complete');
+      } else {
+        console.log('❌ [Auth] No valid session found');
         setIsAdmin(false);
         setCurrentUser(null);
-      } finally {
-        setIsInitializing(false);
       }
-    };
+    } catch (error) {
+      console.error('❌ [Auth] Error checking session:', error);
+      setIsAdmin(false);
+      setCurrentUser(null);
+    } finally {
+      setIsInitializing(false);
+    }
+  };
 
     checkAuth();
 
@@ -314,6 +339,13 @@ function App() {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Debug: Monitor currentUser changes
+  useEffect(() => {
+    console.log('👤 [App] currentUser changed:', currentUser);
+    console.log('🔐 [App] isAdmin:', isAdmin);
+    console.log('📱 [App] isDashboard:', isDashboard);
+  }, [currentUser, isAdmin, isDashboard]);
 
   // Update active set list when set lists change
   useEffect(() => {
