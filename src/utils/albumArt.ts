@@ -14,14 +14,14 @@ export function getOptimizedAlbumArtUrl(
   // Handle iTunes/Apple Music URLs
   if (originalUrl.includes('itunes.apple.com') || originalUrl.includes('mzstatic.com')) {
     const sizeMap = {
-      thumbnail: '60x60',
-      small: '100x100', 
-      medium: '300x300',
-      large: '600x600'
+      thumbnail: '60x60bb.jpg',
+      small: '100x100bb.jpg', 
+      medium: '300x300bb.jpg',
+      large: '600x600bb.jpg'
     };
     
-    // Replace any existing size with the desired size
-    return originalUrl.replace(/\d+x\d+/, sizeMap[size]);
+    // Replace the size part at the end of iTunes URLs (e.g., /100x100bb.jpg)
+    return originalUrl.replace(/\/\d+x\d+bb\.jpg$/, `/${sizeMap[size]}`);
   }
   
   // For other URLs (user uploads, etc.), return as-is
@@ -112,4 +112,42 @@ export async function preloadImages(
   });
   
   await Promise.all(promises);
+}
+
+/**
+ * Test and validate album art URLs for debugging
+ */
+export async function validateAlbumArtUrls(urls: string[]): Promise<{
+  working: string[];
+  broken: { url: string; error: string }[];
+  summary: string;
+}> {
+  const working: string[] = [];
+  const broken: { url: string; error: string }[] = [];
+  
+  console.log('🔍 Testing album art URLs...');
+  
+  for (const url of urls) {
+    try {
+      const response = await fetch(url, { method: 'HEAD' });
+      if (response.ok) {
+        working.push(url);
+        console.log('✅', url);
+      } else {
+        broken.push({ url, error: `HTTP ${response.status}: ${response.statusText}` });
+        console.log('❌', url, `HTTP ${response.status}`);
+      }
+    } catch (error) {
+      broken.push({ url, error: error instanceof Error ? error.message : String(error) });
+      console.log('❌', url, error);
+    }
+  }
+  
+  const summary = `Album Art URL Test Results:
+✅ Working: ${working.length}/${urls.length}
+❌ Broken: ${broken.length}/${urls.length}
+${broken.length > 0 ? '\nBroken URLs:\n' + broken.map(b => `- ${b.url}: ${b.error}`).join('\n') : ''}`;
+  
+  console.log(summary);
+  return { working, broken, summary };
 }

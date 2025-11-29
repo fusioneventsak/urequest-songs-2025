@@ -67,7 +67,14 @@ export function AlbumArtDisplay({
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    console.error('Album art failed to load:', displayUrl);
+    console.error('🖼️ Album art failed to load:', {
+      url: displayUrl,
+      title: displayTitle,
+      rawUrl: rawUrl,
+      optimizedUrl: optimizedUrl,
+      naturalWidth: e.currentTarget.naturalWidth,
+      naturalHeight: e.currentTarget.naturalHeight
+    });
     setImageLoadError(true);
   };
 

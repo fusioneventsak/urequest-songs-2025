@@ -178,7 +178,7 @@ export function SongList({ songs, requests = [], onSongSelect }: SongListProps) 
         const link = document.createElement('link');
         link.rel = 'preload';
         link.as = 'image';
-        link.href = song.albumArtUrl.replace('/default.jpg', '/w_16,h_16,c_fill,q_5/default.jpg');
+        link.href = song.albumArtUrl;
         // High priority hint for browser
         link.setAttribute('fetchpriority', 'high');
         document.head.appendChild(link);
