@@ -1,10 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { Camera, User as UserIcon, AlertTriangle, UserCircle } from 'lucide-react';
-import { resizeAndCompressImage, getOptimalCameraConstraints, getOptimalFileInputAccept, supportsHighQualityCapture } from '../../utils/imageUtils';
+import { resizeAndCompressImage, getOptimalFileInputAccept } from '../../utils/imageUtils';
 import { dataURLtoBlob } from '../../utils/photoStorage';
 import { usePhotoStorage } from '../../hooks/usePhotoStorage';
 import { useUiSettings } from '../../hooks/useUiSettings';
-import { Logo } from '../shared/Logo';
 import type { User } from '../../types';
 
 interface LandingPageProps {
@@ -13,7 +12,6 @@ interface LandingPageProps {
 }
 
 // HD photo support with optimized compression for egress savings
-const MAX_PHOTO_SIZE = 2 * 1024 * 1024; // 2MB limit for HD compressed photos
 const MAX_INPUT_SIZE = 50 * 1024 * 1024; // 50MB max input size (supports all major phone brands)
 
 export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
@@ -31,42 +29,8 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
   // Get colors from settings
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
   const bgColor = settings?.frontend_bg_color || '#13091f';
-  const headerBgColor = settings?.frontend_header_bg || '#13091f';
-  const songBorderColor = settings?.song_border_color || '#ff00ff';
+  const songBorderColor = settings?.song_card_color || '#ff00ff';
   const logoUrl = settings?.band_logo_url || '';
-  const bandName = settings?.band_name || 'uRequest Live';
-
-  const startCamera = async () => {
-    try {
-      // Get optimal camera constraints based on device
-      const constraints: MediaStreamConstraints = {
-        video: {
-          facingMode: 'user', // Use front camera by default
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        }
-      };
-      
-      console.log('Requesting camera with constraints:', constraints);
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      
-      if (videoRef.current) {
-        console.log('Camera stream obtained, setting to video element');
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          console.log('Video metadata loaded, playing video');
-          videoRef.current?.play().catch(e => {
-            console.error('Error playing video:', e);
-          });
-        };
-        setIsCapturing(true);
-        setErrorMessage(null);
-      }
-    } catch (err) {
-      console.error('Error accessing camera:', err);
-      setErrorMessage('Could not access camera. Please check your permissions or try uploading a photo from your gallery instead.');
-    }
-  };
 
   const capturePhoto = async () => {
     if (videoRef.current && canvasRef.current) {
@@ -217,7 +181,7 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
                   objectFit: 'contain',
                   maxWidth: '100%'
                 }}
-                onError={(e) => {
+                onError={() => {
                   console.error('Logo failed to load:', logoUrl);
                   console.error('Logo URL was:', logoUrl);
                 }}
@@ -255,7 +219,7 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
                   textShadow: `0 0 20px ${accentColor}, 0 0 10px ${accentColor}80`
                 }}
               >
-                ALL REQUEST EXPERIENCE
+                uRequest Live
               </h2>
               <p
                 className="text-xs font-semibold mb-2 leading-tight"

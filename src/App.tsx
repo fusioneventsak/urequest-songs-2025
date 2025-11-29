@@ -291,6 +291,12 @@ function App() {
     setIsAdmin(true);
   }, []);
 
+  // Handle admin login
+  const handleAdminLogin = useCallback(() => {
+    localStorage.setItem('backendAuth', 'true');
+    setIsAdmin(true);
+  }, []);
+
   // Handle admin logout
   const handleAdminLogout = useCallback(() => {
     localStorage.removeItem('backendAuth');

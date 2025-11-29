@@ -1,4 +1,3 @@
-import React from 'react';
 import { Logo } from './shared/Logo';
 
 interface WelcomeScreenProps {
@@ -72,7 +71,7 @@ export function WelcomeScreen({ onStart, logoUrl, bandName = 'Band Name', accent
                 className="text-2xl md:text-7xl font-black"
                 style={{ color: accentColor }}
               >
-                ALL REQUEST EXPERIENCE
+                uRequest Live
               </span>
             </h1>
           </div>
