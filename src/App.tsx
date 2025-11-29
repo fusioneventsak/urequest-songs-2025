@@ -292,9 +292,34 @@ function App() {
   }, []);
 
   // Handle admin login
-  const handleAdminLogin = useCallback(() => {
+  const handleAdminLogin = useCallback(async () => {
     localStorage.setItem('backendAuth', 'true');
     setIsAdmin(true);
+    
+    // Fetch current user email from Supabase auth
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const userEmail = user.email || localStorage.getItem('backendUser') || 'User';
+        const userName = user.user_metadata?.full_name || userEmail.split('@')[0] || 'User';
+        
+        setCurrentUser({
+          id: user.id,
+          name: userName,
+          photo: user.user_metadata?.avatar_url || '',
+          email: userEmail
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching user:', error);
+      // Fallback to localStorage
+      const backendUser = localStorage.getItem('backendUser') || 'User';
+      setCurrentUser({
+        name: backendUser.split('@')[0] || 'User',
+        photo: '',
+        email: backendUser
+      });
+    }
   }, []);
 
   // Handle admin logout
