@@ -1,14 +1,9 @@
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { Music4, ThumbsUp, X, AlertTriangle, Music, User, Camera } from 'lucide-react';
-import { QRCodeSVG } from 'qrcode.react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Camera, User as UserIcon } from 'lucide-react';
 import { Logo } from '../shared/Logo';
 import { SongList } from '../SongList';
-import { UpvoteList } from './UpvoteList';
 import { Ticker } from '../Ticker';
-import { AlbumArtDisplay } from '../shared/AlbumArtDisplay';
 import { BackToTopButton } from '../shared/BackToTopButton';
-import { generateDefaultAvatar } from '../../utils/photoStorage';
-import { supabase } from '../../utils/supabase';
 import { useUiSettings } from '../../hooks/useUiSettings';
 import toast from 'react-hot-toast';
 import type { Song, SongRequest, RequestFormData, SetList } from '../../types';
@@ -18,7 +13,6 @@ interface KioskPageProps {
   requests: SongRequest[];
   activeSetList: SetList | null;
   onSubmitRequest: (data: RequestFormData) => Promise<boolean>;
-  onVoteRequest: (id: string) => Promise<boolean>;
   logoUrl: string;
 }
 
@@ -27,7 +21,6 @@ export function KioskPage({
   requests,
   activeSetList,
   onSubmitRequest,
-  onVoteRequest,
   logoUrl
 }: KioskPageProps) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -41,7 +34,6 @@ export function KioskPage({
   const [loadedCount, setLoadedCount] = useState(0);
 
   // Local state for UI feedback only
-  const [submittingStates, setSubmittingStates] = useState<Set<string>>(new Set());
   const [votingStates, setVotingStates] = useState<Set<string>>(new Set());
   const [optimisticVotes, setOptimisticVotes] = useState<Map<string, number>>(new Map());
 
@@ -117,7 +109,7 @@ export function KioskPage({
       const allCached = await checkCache();
       if (allCached) return;
 
-      const promises = songsToLoad.map((song, index) => {
+      const promises = songsToLoad.map((song) => {
         if (!song.albumArtUrl) {
           loaded++;
           setLoadedCount(loaded);
@@ -126,7 +118,7 @@ export function KioskPage({
 
         return new Promise<void>((resolve) => {
           const img = new Image();
-          const url = song.albumArtUrl.replace('/default.jpg', '/w_16,h_16,c_fill,q_5/default.jpg');
+          const url = song.albumArtUrl?.replace('/default.jpg', '/w_16,h_16,c_fill,q_5/default.jpg');
 
           img.onload = async () => {
             loaded++;
@@ -411,14 +403,13 @@ export function KioskPage({
 
         <Logo
           url={logoUrl}
-          className="mx-auto"
-          style={{ height: '103.5px' }}
+          className="mx-auto h-[103.5px]"
         />
         <h1
           className="text-3xl font-bold mb-2 -mt-20"
           style={{ color: accentColor, textShadow: `0 0 10px ${accentColor}` }}
         >
-          {settings?.band_name || 'Band Request Hub'}
+          uRequest Live
         </h1>
 
         {activeSetList && (

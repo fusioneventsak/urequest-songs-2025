@@ -18,7 +18,7 @@ export function StickyHeader({
   onLogoClick,
   children
 }: StickyHeaderProps) {
-  const { settings } = useUiSettings();
+  const { accentColor } = useUiSettings();
   const [headerHeight, setHeaderHeight] = useState(100); // Updated default height to 100px
   const { headerRef, isHeaderVisible, hasScrolled } = useStickyHeader(headerHeight);
   
@@ -28,7 +28,7 @@ export function StickyHeader({
       const height = headerRef.current.offsetHeight;
       setHeaderHeight(height);
     }
-  }, [settings?.band_name]);
+  }, []);
   
   return (
     <>
@@ -56,7 +56,7 @@ export function StickyHeader({
                   lineHeight: '1.2'
                 }}
               >
-                {settings?.band_name || 'uRequest Live'}
+                uRequest Live
               </h1>
             </div>
             {children}

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { Music4, ThumbsUp, UserCircle, Settings, Camera } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Camera, User as UserIcon } from 'lucide-react';
 import { Logo } from '../shared/Logo';
 import { SongList } from '../SongList';
 import { UpvoteList } from './UpvoteList';
@@ -51,7 +51,6 @@ export function UserFrontend({
   const [showWelcome, setShowWelcome] = useState(true);
 
   // Local state for UI feedback only
-  const [submittingStates, setSubmittingStates] = useState<Set<string>>(new Set());
   const [votingStates, setVotingStates] = useState<Set<string>>(new Set());
 
   const mountedRef = useRef(true);
@@ -105,48 +104,10 @@ export function UserFrontend({
     return availableSongs.filter(song => {
       return (
         song.title.toLowerCase().includes(searchLower) ||
-        song.artist.toLowerCase().includes(searchLower) ||
-        (song.genre?.toLowerCase() || '').includes(searchLower)
+        song.artist.toLowerCase().includes(searchLower)
       );
     });
   }, [availableSongs, searchTerm]);
-
-  // Simplified song request handler - App.tsx handles optimistic updates
-  const handleRequestSong = useCallback(async (song: Song) => {
-    if (!currentUser) {
-      toast.error('Please set up your profile first');
-      return;
-    }
-
-    setSubmittingStates(prev => new Set([...prev, song.id]));
-
-    try {
-      const requestData: RequestFormData = {
-        title: song.title,
-        artist: song.artist || '',
-        requestedBy: currentUser.name,
-        userPhoto: currentUser.photo,
-        message: ''
-      };
-
-      const success = await onSubmitRequest(requestData);
-      
-      if (success) {
-        toast.success(`"${song.title}" has been added to the queue!`);
-        setSelectedSong(null);
-        setIsRequestModalOpen(false);
-      }
-    } catch (error) {
-      console.error('Error requesting song:', error);
-      toast.error('Failed to submit request. Please try again.');
-    } finally {
-      setSubmittingStates(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(song.id);
-        return newSet;
-      });
-    }
-  }, [currentUser, onSubmitRequest]);
 
   // Simplified vote handler - no temporary request validation needed
   const handleVote = useCallback(async (requestId: string): Promise<boolean> => {
@@ -201,7 +162,7 @@ export function UserFrontend({
       <WelcomeScreen
         onStart={handleWelcomeStart}
         logoUrl={logoUrl}
-        bandName={settings?.band_name || 'Band Name'}
+        bandName="uRequest Live"
         accentColor={accentColor}
       />
     );
@@ -374,7 +335,7 @@ export function UserFrontend({
           className="text-3xl font-bold mb-2"
           style={{ color: accentColor, textShadow: `0 0 10px ${accentColor}` }}
         >
-          {settings?.band_name || 'Band Request Hub'}
+          uRequest Live
         </h1>
 
         {activeSetList && (

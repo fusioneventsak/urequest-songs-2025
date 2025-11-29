@@ -958,6 +958,16 @@ function App() {
               </div>
               
               <div className="flex items-center space-x-4">
+                {/* User Info */}
+                <div className="text-right text-sm">
+                  <div className="text-gray-300">
+                    {currentUser?.name || 'User'}
+                  </div>
+                  <div className="text-gray-500 text-xs">
+                    {currentUser?.email || 'No email'}
+                  </div>
+                </div>
+                
                 <button
                   onClick={navigateToFrontend}
                   className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded text-sm"

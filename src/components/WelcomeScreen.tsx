@@ -7,7 +7,7 @@ interface WelcomeScreenProps {
   accentColor?: string;
 }
 
-export function WelcomeScreen({ onStart, logoUrl, bandName = 'Band Name', accentColor = '#ff00ff' }: WelcomeScreenProps) {
+export function WelcomeScreen({ onStart, logoUrl, bandName = 'uRequest Live', accentColor = '#ff00ff' }: WelcomeScreenProps) {
   // Create gradient stops for the background
   const gradientStyle = {
     background: `radial-gradient(ellipse at top, ${accentColor}40, transparent 50%), radial-gradient(ellipse at bottom, ${accentColor}20, transparent 70%), linear-gradient(to bottom, #000000, ${accentColor}15, #000000)`
