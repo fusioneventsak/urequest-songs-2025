@@ -230,17 +230,72 @@ function App() {
     const checkAuth = async () => {
       try {
         const hasAuth = localStorage.getItem('backendAuth') === 'true';
-        setIsAdmin(hasAuth);
-
-        const savedUser = localStorage.getItem('currentUser');
-        if (savedUser) {
-          try {
-            setCurrentUser(JSON.parse(savedUser));
-          } catch (e) {
-            console.error('Error parsing saved user:', e);
+        
+        if (hasAuth) {
+          // Verify Supabase session is valid
+          const { data: { session } } = await supabase.auth.getSession();
+          
+          if (!session) {
+            // Session expired - clear auth
+            console.warn('⚠️ Supabase session expired - clearing auth');
+            localStorage.removeItem('backendAuth');
+            localStorage.removeItem('backendUser');
             localStorage.removeItem('currentUser');
+            setIsAdmin(false);
+            setCurrentUser(null);
+          } else {
+            // Session valid - set user data
+            setIsAdmin(true);
+            
+            // Get user from Supabase auth
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              // Fetch user profile from database
+              const { data: profileData, error: profileError } = await supabase
+                .from('profiles')
+                .select('id, email, full_name, avatar_url')
+                .eq('id', user.id)
+                .single();
+              
+              let userEmail = user.email || '';
+              let userName = user.user_metadata?.full_name || '';
+              let userPhoto = user.user_metadata?.avatar_url || '';
+              
+              // Use profile data if available
+              if (profileData && !profileError) {
+                userEmail = profileData.email || userEmail;
+                userName = profileData.full_name || userName;
+                userPhoto = profileData.avatar_url || userPhoto;
+              }
+              
+              // Fallback to localStorage if needed
+              if (!userEmail) {
+                userEmail = localStorage.getItem('backendUser') || 'User';
+              }
+              if (!userName) {
+                userName = userEmail.split('@')[0] || 'User';
+              }
+              
+              setCurrentUser({
+                id: user.id,
+                name: userName,
+                photo: userPhoto,
+                email: userEmail
+              });
+              
+              console.log('✅ Auth verified - User:', userName, 'Email:', userEmail, 'From profiles:', !!profileData);
+            }
           }
+        } else {
+          setIsAdmin(false);
+          setCurrentUser(null);
         }
+      } catch (error) {
+        console.error('Auth check error:', error);
+        // On error, clear auth to be safe
+        localStorage.removeItem('backendAuth');
+        setIsAdmin(false);
+        setCurrentUser(null);
       } finally {
         setIsInitializing(false);
       }
@@ -296,19 +351,44 @@ function App() {
     localStorage.setItem('backendAuth', 'true');
     setIsAdmin(true);
     
-    // Fetch current user email from Supabase auth
+    // Fetch current user email from Supabase auth and profiles
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        const userEmail = user.email || localStorage.getItem('backendUser') || 'User';
-        const userName = user.user_metadata?.full_name || userEmail.split('@')[0] || 'User';
+        // Fetch user profile from database
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, email, full_name, avatar_url')
+          .eq('id', user.id)
+          .single();
+        
+        let userEmail = user.email || '';
+        let userName = user.user_metadata?.full_name || '';
+        let userPhoto = user.user_metadata?.avatar_url || '';
+        
+        // Use profile data if available
+        if (profileData && !profileError) {
+          userEmail = profileData.email || userEmail;
+          userName = profileData.full_name || userName;
+          userPhoto = profileData.avatar_url || userPhoto;
+        }
+        
+        // Fallback to localStorage if needed
+        if (!userEmail) {
+          userEmail = localStorage.getItem('backendUser') || 'User';
+        }
+        if (!userName) {
+          userName = userEmail.split('@')[0] || 'User';
+        }
         
         setCurrentUser({
           id: user.id,
           name: userName,
-          photo: user.user_metadata?.avatar_url || '',
+          photo: userPhoto,
           email: userEmail
         });
+        
+        console.log('✅ Login - User:', userName, 'Email:', userEmail, 'From profiles:', !!profileData);
       }
     } catch (error) {
       console.error('Error fetching user:', error);
@@ -954,8 +1034,8 @@ function App() {
 
   // Show backend interface
   if (isBackend) {
-    console.log('🔐 [App] Showing backend interface, isAdmin:', isAdmin);
-    if (!isAdmin) {
+    console.log('🔐 [App] Showing backend interface, isAdmin:', isAdmin, 'currentUser:', currentUser?.name);
+    if (!isAdmin || !currentUser) {
       console.log('🔑 [App] Showing BackendLogin (not authenticated)');
       return (
         <ErrorBoundary>
@@ -963,7 +1043,7 @@ function App() {
         </ErrorBoundary>
       );
     }
-    console.log('✅ [App] Showing backend dashboard (authenticated)');
+    console.log('✅ [App] Showing backend dashboard (authenticated) - User:', currentUser.name, 'Email:', currentUser.email);
 
     // Show loading state if data is still being fetched
     const isLoadingData = songs.length === 0 && requests.length === 0 && setLists.length === 0;
