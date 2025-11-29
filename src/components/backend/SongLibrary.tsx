@@ -94,6 +94,10 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
     setIsProcessing(true);
 
     try {
+      let successCount = 0;
+      let duplicateCount = 0;
+      let errorCount = 0;
+      
       // Process songs in smaller batches
       const batchSize = 5;
       for (let i = 0; i < lines.length; i += batchSize) {
@@ -114,12 +118,29 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
           })
         );
 
-        // Insert the batch
-        const { error } = await supabase
-          .from('songs')
-          .insert(songsWithArt);
+        // Insert songs individually to handle duplicates gracefully
+        for (const song of songsWithArt) {
+          try {
+            const { error } = await supabase
+              .from('songs')
+              .insert([song]);
 
-        if (error) throw error;
+            if (error) {
+              if (error.code === '23505' && error.message.includes('songs_title_artist_user_unique')) {
+                duplicateCount++;
+                console.log(`Duplicate skipped: ${song.title} by ${song.artist}`);
+              } else {
+                errorCount++;
+                console.error(`Error adding ${song.title}:`, error);
+              }
+            } else {
+              successCount++;
+            }
+          } catch (err) {
+            errorCount++;
+            console.error(`Error adding ${song.title}:`, err);
+          }
+        }
         
         setProcessedCount(prev => prev + batch.length);
         
@@ -131,7 +152,16 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
 
       setBulkInput('');
       setIsBulkAdding(false);
-      alert(`Successfully added ${lines.length} songs to the library`);
+      
+      // Show detailed results
+      let message = `Bulk import completed:\n- ${successCount} songs added successfully`;
+      if (duplicateCount > 0) {
+        message += `\n- ${duplicateCount} duplicates skipped`;
+      }
+      if (errorCount > 0) {
+        message += `\n- ${errorCount} songs failed to add`;
+      }
+      alert(message);
     } catch (error) {
       console.error('Error bulk adding songs:', error);
       alert('An error occurred while adding songs. Please try again.');
@@ -167,6 +197,10 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
       setProcessedCount(0);
       setIsProcessing(true);
 
+      let successCount = 0;
+      let duplicateCount = 0;
+      let errorCount = 0;
+      
       // Process songs in batches
       const batchSize = 5;
       for (let i = 0; i < validSongs.length; i += batchSize) {
@@ -187,12 +221,29 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
           })
         );
 
-        // Insert the batch
-        const { error } = await supabase
-          .from('songs')
-          .insert(songsWithArt);
+        // Insert songs individually to handle duplicates gracefully
+        for (const song of songsWithArt) {
+          try {
+            const { error } = await supabase
+              .from('songs')
+              .insert([song]);
 
-        if (error) throw error;
+            if (error) {
+              if (error.code === '23505' && error.message.includes('songs_title_artist_user_unique')) {
+                duplicateCount++;
+                console.log(`Duplicate skipped: ${song.title} by ${song.artist}`);
+              } else {
+                errorCount++;
+                console.error(`Error adding ${song.title}:`, error);
+              }
+            } else {
+              successCount++;
+            }
+          } catch (err) {
+            errorCount++;
+            console.error(`Error adding ${song.title}:`, err);
+          }
+        }
         
         setProcessedCount(prev => prev + batch.length);
         
@@ -202,7 +253,15 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
         }
       }
 
-      alert(`Successfully added ${validSongs.length} songs to the library`);
+      // Show detailed results
+      let message = `CSV import completed:\n- ${successCount} songs added successfully`;
+      if (duplicateCount > 0) {
+        message += `\n- ${duplicateCount} duplicates skipped`;
+      }
+      if (errorCount > 0) {
+        message += `\n- ${errorCount} songs failed to add`;
+      }
+      alert(message);
       setIsBulkAdding(false);
     } catch (error) {
       console.error('Error processing CSV:', error);

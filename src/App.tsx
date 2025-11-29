@@ -503,7 +503,14 @@ function App() {
           user_id: user.id
         });
 
-      if (error) throw error;
+      if (error) {
+        // Check if it's a duplicate song error
+        if (error.code === '23505' && error.message.includes('songs_title_artist_user_unique')) {
+          toast.error(`Song "${song.title}" by "${song.artist}" already exists in your library`);
+          return;
+        }
+        throw error;
+      }
       
       toast.success('Song added successfully!');
       // The realtime subscription will update the songs list
