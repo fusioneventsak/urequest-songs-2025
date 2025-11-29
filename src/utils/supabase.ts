@@ -41,14 +41,7 @@ try {
   },
   realtime: {
     params: {
-      eventsPerSecond: 10, // Increased from 5 to improve realtime responsiveness
-      // Exclude photo data from realtime updates to reduce payload size
-      excludeColumns: ['photo', 'userPhoto']
-    },
-    reconnect: {
-      maxRetries: 20, // Increased for better reliability in production
-      delay: 2000, // Increased to reduce server load
-      timeout: 60000 // 60 second timeout for connection attempts
+      eventsPerSecond: 10 // Increased from 5 to improve realtime responsiveness
     }
   },
   db: {
@@ -83,6 +76,40 @@ console.log('Supabase configuration:', {
                !window.location.hostname.includes('stackblitz') &&
                !window.location.hostname.includes('127.0.0.1')
 });
+
+// Test connection on initialization
+async function testSupabaseConnection() {
+  try {
+    console.log('🔍 [SUPABASE] Testing connection...');
+    
+    // Test basic connectivity
+    const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+      method: 'HEAD',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`
+      }
+    });
+    
+    console.log('✅ [SUPABASE] Connection test:', response.status, response.statusText);
+    
+    if (!response.ok) {
+      console.warn('⚠️ [SUPABASE] Connection test failed:', response.status);
+    }
+    
+  } catch (error) {
+    console.error('❌ [SUPABASE] Connection test error:', error);
+    console.error('🔍 [SUPABASE] Error details:', {
+      name: error instanceof Error ? error.name : 'Unknown',
+      message: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
+// Run connection test (non-blocking)
+if (supabaseUrl && supabaseAnonKey) {
+  testSupabaseConnection();
+}
 
 // Helper function to handle Supabase errors
 export function handleSupabaseError(error: any): never {

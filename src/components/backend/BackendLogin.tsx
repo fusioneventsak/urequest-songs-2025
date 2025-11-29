@@ -108,11 +108,37 @@ export function BackendLogin({ onLogin }: BackendLoginProps) {
         }
       }
     } catch (error) {
-      console.error('Auth error:', error);
+      console.error('❌ [AUTH] Authentication error:', error);
+      
+      // Enhanced error logging
       if (error instanceof Error) {
-        setError(error.message);
+        console.error('❌ [AUTH] Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+        
+        // Check for specific error types
+        if (error.message.includes('Failed to fetch') || error.name === 'TypeError') {
+          console.error('🚨 [AUTH] NETWORK ERROR detected');
+          console.error('🔍 [AUTH] Possible causes:');
+          console.error('  - Network connectivity issues');
+          console.error('  - Supabase server unreachable');
+          console.error('  - CORS configuration problems');
+          console.error('  - Firewall blocking requests');
+          setError('Network connection error. Please check your internet connection and try again.');
+        } else if (error.message.includes('Invalid login credentials')) {
+          setError('Invalid email or password. Please check your credentials.');
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Please check your email and click the confirmation link.');
+        } else if (error.message.includes('Too many requests')) {
+          setError('Too many login attempts. Please wait a moment and try again.');
+        } else {
+          setError(`Authentication failed: ${error.message}`);
+        }
       } else {
-        setError('An error occurred. Please try again.');
+        console.error('❌ [AUTH] Unknown error type:', typeof error, error);
+        setError('An unexpected error occurred. Please try again.');
       }
     } finally {
       setIsLoading(false);
