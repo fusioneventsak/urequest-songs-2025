@@ -385,10 +385,14 @@ function App() {
   const handleAdminLogin = useCallback(async () => {
     console.log('🔐 [Login] Admin login callback triggered');
     
+    // Navigate to dashboard immediately
+    console.log('🔄 [Login] Navigating to dashboard...');
+    navigateToDashboard();
+    
     // Auth state will be updated by the onAuthStateChange listener
-    // Just show success message
+    // Show success message
     toast.success('✅ Logged in successfully! Loading dashboard...');
-  }, []);
+  }, [navigateToDashboard]);
 
   // Handle admin logout
   const handleAdminLogout = useCallback(async () => {
