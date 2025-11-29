@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Music } from 'lucide-react';
 import { useUiSettings } from '../../hooks/useUiSettings';
+import { getOptimizedAlbumArtUrl, type AlbumArtSize } from '../../utils/albumArt';
 import type { Song } from '../../types';
 
 interface AlbumArtDisplayProps {
@@ -24,12 +25,31 @@ export function AlbumArtDisplay({
 }: AlbumArtDisplayProps) {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [optimizedUrl, setOptimizedUrl] = useState<string | undefined>(undefined);
   const { settings } = useUiSettings();
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
 
   // If song is provided, use its properties
-  const displayUrl = song?.albumArtUrl || albumArtUrl;
+  const rawUrl = song?.albumArtUrl || albumArtUrl;
   const displayTitle = song?.title || title || 'Album Art';
+
+  // Map component sizes to AlbumArtSize
+  const sizeMap: Record<string, AlbumArtSize> = {
+    xs: 'thumbnail',
+    sm: 'small',
+    medium: 'medium',
+    lg: 'large'
+  };
+
+  // Optimize the URL when rawUrl or size changes
+  useEffect(() => {
+    const optimized = getOptimizedAlbumArtUrl(rawUrl, sizeMap[size]);
+    setOptimizedUrl(optimized);
+    setImageLoadError(false);
+    setImageLoaded(false);
+  }, [rawUrl, size]);
+
+  const displayUrl = optimizedUrl;
 
   // Size configurations
   const sizeClasses = {

@@ -47,11 +47,11 @@ const SongCard = memo(({
         <div className="relative flex items-center gap-3 w-full">
           {song.albumArtUrl ? (
             <img
-              src={song.albumArtUrl.replace('/default.jpg', '/w_16,h_16,c_fill,q_5/default.jpg')}
+              src={song.albumArtUrl}
               alt=""
               loading={loadingStrategy}
               decoding={decodingStrategy}
-              fetchpriority={fetchPriority as 'high' | 'low'}
+              fetchPriority={fetchPriority as 'high' | 'low'}
               width="48"
               height="48"
               className="w-12 h-12 object-cover rounded-md flex-shrink-0"
@@ -59,6 +59,10 @@ const SongCard = memo(({
                 boxShadow: '0 0 8px var(--song-card-color-30)',
                 imageRendering: 'auto',
                 willChange: 'auto'
+              }}
+              onError={(e) => {
+                // Hide broken images gracefully
+                e.currentTarget.style.display = 'none';
               }}
             />
           ) : (

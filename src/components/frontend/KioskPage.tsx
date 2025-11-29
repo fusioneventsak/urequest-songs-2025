@@ -86,7 +86,7 @@ export function KioskPage({
           const cachedUrls = await Promise.all(
             songsToLoad.map(song =>
               song.albumArtUrl
-                ? cache.match(song.albumArtUrl.replace('/default.jpg', '/w_16,h_16,c_fill,q_5/default.jpg'))
+                ? cache.match(song.albumArtUrl)
                 : Promise.resolve(undefined)
             )
           );
@@ -118,7 +118,14 @@ export function KioskPage({
 
         return new Promise<void>((resolve) => {
           const img = new Image();
-          const url = song.albumArtUrl?.replace('/default.jpg', '/w_16,h_16,c_fill,q_5/default.jpg');
+          const url = song.albumArtUrl;
+
+          if (!url) {
+            loaded++;
+            setLoadedCount(loaded);
+            resolve();
+            return;
+          }
 
           img.onload = async () => {
             loaded++;

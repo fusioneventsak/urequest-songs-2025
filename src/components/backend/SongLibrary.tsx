@@ -219,6 +219,11 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
 
   const handleDeleteSong = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this song?')) {
+      // Optimistic update - remove from UI immediately
+      if (onDeleteSong && typeof onDeleteSong === 'function') {
+        onDeleteSong(id);
+      }
+
       try {
         const { error } = await supabase
           .from('songs')
@@ -227,10 +232,8 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
 
         if (error) throw error;
 
-        // Call parent callback to update state
-        if (onDeleteSong && typeof onDeleteSong === 'function') {
-          onDeleteSong(id);
-        }
+        console.log('✅ Song deleted successfully:', id);
+        // Real-time subscription will handle the update for other clients
       } catch (error) {
         console.error('Error deleting song:', error);
         alert('Error deleting song. Please try again.');

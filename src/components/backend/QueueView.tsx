@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { ThumbsUp, Lock, CheckCircle2, ChevronDown, ChevronUp, Users, UserCircle, Maximize2, MessageCircle, FileText, Flame } from 'lucide-react';
+import { ThumbsUp, Lock, CheckCircle2, ChevronDown, ChevronUp, Users, UserCircle, Maximize2, MessageCircle, FileText, Flame, Trash2 } from 'lucide-react';
 import { supabase } from '../../utils/supabase';
 import { useUiSettings } from '../../hooks/useUiSettings';
 import { AlbumArtDisplay } from '../shared/AlbumArtDisplay';
@@ -512,14 +512,30 @@ export function QueueView({
                         // Call the actual handler
                         onMarkAsPlayed(request.id);
                       }}
-                      className="p-2 rounded-lg transition-all duration-200 flex items-center bg-red-500 text-white hover:bg-red-600 shadow-lg"
+                      className="p-2 rounded-lg transition-all duration-200 flex items-center bg-green-500 text-white hover:bg-green-600 shadow-lg"
                       style={{
-                        boxShadow: '0 0 15px rgba(239, 68, 68, 0.5)',
+                        boxShadow: '0 0 15px rgba(34, 197, 94, 0.5)',
                       }}
                       title="Mark as Played"
                     >
                       <CheckCircle2 className="w-5 h-5" />
                     </button>
+                    {onRemoveRequest && (
+                      <button
+                        onClick={() => {
+                          if (window.confirm('Are you sure you want to remove this request?')) {
+                            onRemoveRequest(request.id);
+                          }
+                        }}
+                        className="p-2 rounded-lg transition-all duration-200 flex items-center bg-red-500 text-white hover:bg-red-600 shadow-lg"
+                        style={{
+                          boxShadow: '0 0 15px rgba(239, 68, 68, 0.5)',
+                        }}
+                        title="Remove Request"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 

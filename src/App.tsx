@@ -840,12 +840,17 @@ function App() {
     }
   }, [isOnline]);
 
-  // Handle removing a request
+  // Handle removing a request with optimistic updates
   const handleRemoveRequest = useCallback(async (id: string) => {
     if (!isOnline) {
       toast.error('Cannot remove requests while offline. Please check your internet connection.');
       return false;
     }
+
+    // Optimistic update - remove from UI immediately
+    const originalRequests = [...requests];
+    const updatedRequests = requests.filter(req => req.id !== id);
+    setRequests(updatedRequests);
 
     try {
       console.log(`🗑️ Removing request: ${id}`);
@@ -874,10 +879,16 @@ function App() {
 
       if (requestError) throw requestError;
 
+      console.log('✅ Request removed successfully:', id);
       toast.success('Request removed!');
+      // Real-time subscription will handle updates for other clients
       return true;
     } catch (error) {
       console.error('Error removing request:', error);
+      
+      // Revert optimistic update on error
+      setRequests(originalRequests);
+      
       toast.error('Failed to remove request. Please try again.');
       return false;
     }
@@ -1049,7 +1060,7 @@ function App() {
     }
   }, [isOnline]);
 
-  // Handle setting a set list as active
+  // Handle setting a set list as active (supports multiple active setlists)
   const handleSetActive = useCallback(async (id: string) => {
     if (!isOnline) {
       toast.error('Cannot change set list status while offline.');
@@ -1070,20 +1081,53 @@ function App() {
 
       const newActiveStatus = !currentSetList.is_active;
 
-      // Update active status (database trigger ensures only one is active)
+      // Optimistically update the UI immediately
+      setSetLists(prevSetLists => 
+        prevSetLists.map(setList => 
+          setList.id === id 
+            ? { ...setList, isActive: newActiveStatus }
+            : setList
+        )
+      );
+
+      // Update active status in database (allows multiple active setlists)
       const { error: updateError } = await supabase
         .from('set_lists')
-        .update({ is_active: newActiveStatus })
+        .update({ 
+          is_active: newActiveStatus,
+          updated_at: new Date().toISOString()
+        })
         .eq('id', id);
 
-      if (updateError) throw updateError;
+      if (updateError) {
+        // Revert optimistic update on error
+        setSetLists(prevSetLists => 
+          prevSetLists.map(setList => 
+            setList.id === id 
+              ? { ...setList, isActive: !newActiveStatus }
+              : setList
+          )
+        );
+        throw updateError;
+      }
 
-      toast.success(newActiveStatus ? 'Set list activated!' : 'Set list deactivated!');
+      // Show success message with count of active setlists
+      const activeCount = setLists.filter(sl => 
+        sl.id === id ? newActiveStatus : sl.isActive
+      ).length;
+      
+      if (newActiveStatus) {
+        toast.success(`Set list activated! (${activeCount} active setlist${activeCount !== 1 ? 's' : ''})`);
+      } else {
+        toast.success(`Set list deactivated! (${activeCount} active setlist${activeCount !== 1 ? 's' : ''})`);
+      }
+
+      console.log(`✅ Set list ${newActiveStatus ? 'activated' : 'deactivated'}. Total active: ${activeCount}`);
     } catch (error) {
       console.error('Error setting active set list:', error);
       toast.error('Failed to change set list status.');
     }
-  }, [isOnline]);
+  }, [isOnline, setLists]);
 
   // Create merged requests with optimistic updates
   const mergedRequests = useMemo(() => {
