@@ -261,12 +261,12 @@ function App() {
         console.log('🔄 [Auth] Setting currentUser immediately:', userObject);
         setCurrentUser(userObject);
         
-        // Try to fetch profile data asynchronously (non-blocking)
+        // Try to fetch profile data asynchronously (optional enhancement)
         console.log('🔍 [Auth] Attempting to fetch profile data...');
         try {
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
-            .select('id, email, full_name, avatar_url, role, is_active')
+            .select('id, email, full_name, avatar_url')
             .eq('id', user.id)
             .single();
           
@@ -274,15 +274,6 @@ function App() {
           
           if (profileData && !profileError) {
             console.log('✅ [Auth] Profile found, updating user data');
-            
-            // Check if user is active
-            if (profileData.is_active === false) {
-              console.warn('⚠️ [Auth] User account is deactivated');
-              await supabase.auth.signOut();
-              setIsAdmin(false);
-              setCurrentUser(null);
-              return;
-            }
             
             // Update user with profile data
             const updatedUserObject = {
@@ -321,12 +312,20 @@ function App() {
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      async (event: any, session: any) => {
         console.log('🔄 [Auth] State changed:', event);
         
         if (event === 'SIGNED_IN' && session?.user) {
-          console.log('✅ [Auth] User signed in');
+          console.log('✅ [Auth] User signed in, checking auth and navigating to dashboard');
           await checkAuth();
+          // Ensure we navigate to dashboard after successful sign in
+          console.log('🔄 [Auth] Current isDashboard state:', isDashboard);
+          if (!isDashboard) {
+            console.log('🔄 [Auth] Not on dashboard, navigating...');
+            window.history.pushState({}, '', `/${DASHBOARD_PATH}`);
+            setIsDashboard(true);
+            setIsKiosk(false);
+          }
         } else if (event === 'SIGNED_OUT') {
           console.log('👋 [Auth] User signed out');
           setIsAdmin(false);
@@ -385,9 +384,19 @@ function App() {
   const handleAdminLogin = useCallback(async () => {
     console.log('🔐 [Login] Admin login callback triggered');
     
-    // Navigate to dashboard immediately
-    console.log('🔄 [Login] Navigating to dashboard...');
-    navigateToDashboard();
+    // Check current path and set dashboard state
+    const currentPath = window.location.pathname;
+    console.log('🔄 [Login] Current path:', currentPath);
+    
+    if (currentPath.includes('dashboard')) {
+      console.log('🔄 [Login] Already on dashboard path, setting state...');
+      setIsDashboard(true);
+      setIsKiosk(false);
+      setIsLeaderboard(false);
+    } else {
+      console.log('🔄 [Login] Not on dashboard path, navigating...');
+      navigateToDashboard();
+    }
     
     // Auth state will be updated by the onAuthStateChange listener
     // Show success message

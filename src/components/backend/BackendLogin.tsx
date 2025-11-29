@@ -43,30 +43,19 @@ export function BackendLogin({ onLogin }: BackendLoginProps) {
         if (signUpError) throw signUpError;
 
         if (data?.user) {
-          // ✅ Create profile for new user
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-              id: data.user.id,
-              email: data.user.email || email,
-              full_name: fullName,
-              avatar_url: null,
-              role: 'viewer',
-              is_active: true,
-              last_login_at: new Date().toISOString()
-            });
-
-          if (profileError) {
-            console.error('Error creating profile:', profileError);
-            // Don't throw - profile creation failure shouldn't block login
-          }
-
+          console.log('✅ [Signup] User created and authenticated successfully:', data.user.email);
+          
           // ✅ Auto-login user after signup (no email confirmation needed)
           setError('Account created successfully! Logging you in...');
           setEmail('');
           setPassword('');
           setFullName('');
           setIsSignUp(false);
+          
+          // Navigate to dashboard URL before triggering callback
+          console.log('🔄 [Signup] Navigating to dashboard URL...');
+          window.history.pushState({}, '', '/dashboard');
+          
           // Trigger login callback - Supabase session is now active
           onLogin();
         }
@@ -80,29 +69,12 @@ export function BackendLogin({ onLogin }: BackendLoginProps) {
         if (signInError) throw signInError;
 
         if (data?.user) {
-          // Check if user has admin role
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('role, is_active')
-            .eq('id', data.user.id)
-            .single();
-
-          if (profileError) {
-            console.error('Error fetching profile:', profileError);
-            setError('Could not verify user permissions. Please contact an administrator.');
-            await supabase.auth.signOut();
-            return;
-          }
-
-          if (!profileData?.is_active) {
-            setError('Your account has been deactivated. Please contact an administrator.');
-            await supabase.auth.signOut();
-            return;
-          }
-
-          // Update last login
-          await supabase.rpc('update_last_login', { user_id: data.user.id });
-
+          console.log('✅ [Login] User authenticated successfully:', data.user.email);
+          
+          // Navigate to dashboard URL before triggering callback
+          console.log('🔄 [Login] Navigating to dashboard URL...');
+          window.history.pushState({}, '', '/dashboard');
+          
           // Trigger callback - Supabase session is now active
           onLogin();
         }
