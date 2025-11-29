@@ -80,7 +80,7 @@ function App() {
   console.log('🔧 App.tsx: Current requests count:', requests.length);
 
   const [setLists, setSetLists] = useState<SetList[]>([]);
-  const [activeSetList, setActiveSetList] = useState<SetList | null>(null);
+  const [activeSetLists, setActiveSetLists] = useState<SetList[]>([]);
 
   // Voting states
   const [votingStates, setVotingStates] = useState<Set<string>>(new Set());
@@ -366,18 +366,49 @@ function App() {
     console.log('📱 [App] isDashboard:', isDashboard);
   }, [currentUser, isAdmin, isDashboard]);
 
-  // Update active set list when set lists change
+  // Update active set lists when set lists change
   useEffect(() => {
-    const active = setLists?.find(sl => sl?.isActive);
+    const activeSetListsArray = setLists?.filter(sl => sl?.isActive) || [];
     
-    if (active) {
-      console.log(`Active set list updated in App: ${active.name} (${active.id})`);
+    if (activeSetListsArray.length > 0) {
+      console.log(`Active set lists updated in App: ${activeSetListsArray.map(sl => sl.name).join(', ')} (${activeSetListsArray.length} total)`);
     } else if (setLists?.length > 0) {
-      console.log('No active set list found among', setLists.length, 'set lists');
+      console.log('No active set lists found among', setLists.length, 'set lists');
     }
     
-    setActiveSetList(active || null);
+    setActiveSetLists(activeSetListsArray);
   }, [setLists]);
+
+  // Create a combined active setlist from all active setlists
+  const combinedActiveSetList = useMemo(() => {
+    if (activeSetLists.length === 0) return null;
+    
+    // Combine all songs from active setlists, removing duplicates by title+artist
+    const allSongs: Song[] = [];
+    const seenSongs = new Set<string>();
+    
+    activeSetLists.forEach(setList => {
+      setList.songs?.forEach(song => {
+        const songKey = `${song.title.toLowerCase()}|${(song.artist || '').toLowerCase()}`;
+        if (!seenSongs.has(songKey)) {
+          seenSongs.add(songKey);
+          allSongs.push(song);
+        }
+      });
+    });
+    
+    // Create a combined setlist object
+    return {
+      id: 'combined-active',
+      name: activeSetLists.length === 1 
+        ? activeSetLists[0].name 
+        : `${activeSetLists.length} Active Setlists`,
+      date: new Date(),
+      songs: allSongs,
+      isActive: true,
+      notes: activeSetLists.map(sl => sl.name).join(', ')
+    };
+  }, [activeSetLists]);
 
   // Handle navigation to dashboard
   const navigateToDashboard = useCallback(() => {
@@ -1118,7 +1149,7 @@ function App() {
       <KioskPage
         songs={songs}
         requests={mergedRequests}
-        activeSetList={activeSetList}
+        activeSetList={combinedActiveSetList}
         onSubmitRequest={handleSubmitRequest}
         onVoteRequest={handleVoteRequest}
         logoUrl={settings?.band_logo_url || DEFAULT_BAND_LOGO}
@@ -1206,6 +1237,7 @@ function App() {
                 onRemoveRequest={handleRemoveRequest}
                 onResetQueue={handleResetQueue}
                 isOnline={isOnline}
+                activeSetList={combinedActiveSetList}
               />
             )}
             {activeBackendTab === 'setlists' && (
@@ -1278,7 +1310,7 @@ function App() {
         currentUser={currentUser}
         songs={songs}
         requests={mergedRequests}
-        activeSetList={activeSetList}
+        activeSetList={combinedActiveSetList}
         onUpdateUser={handleUserUpdate}
         onSubmitRequest={handleSubmitRequest}
         onVoteRequest={handleVoteRequest}

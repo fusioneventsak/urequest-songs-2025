@@ -17,6 +17,7 @@ interface QueueViewProps {
   onRemoveRequest?: (id: string) => void;
   onResetQueue?: () => void;
   isOnline?: boolean;
+  activeSetList?: any; // SetList with songs from multiple active setlists
 }
 
 const decodeTitle = (title: string) => {
@@ -34,7 +35,8 @@ export function QueueView({
   onMarkAsPlayed,
   onRemoveRequest,
   onResetQueue,
-  isOnline = true
+  isOnline = true,
+  activeSetList
 }: QueueViewProps) {
   const [lockingStates, setLockingStates] = useState<Set<string>>(new Set());
   const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set());
