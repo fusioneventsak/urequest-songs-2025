@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { Plus, Save, Trash2, Music4, Check, Edit2, X, Search, Loader2, Play, AlertCircle, Filter, Tags, ChevronDown, ChevronUp } from 'lucide-react';
+import { Plus, Save, Trash2, Music, Check, Edit2, X, Search, Loader2, Play, AlertCircle, Filter, Tags, ChevronDown, ChevronUp } from 'lucide-react';
 import { supabase } from '../../utils/supabase';
 import type { Song, SetList } from '../../types';
 
@@ -353,7 +353,7 @@ export function SetListManager({
                           />
                         ) : (
                           <div className="w-12 h-12 rounded-md flex items-center justify-center bg-neon-purple/20 flex-shrink-0">
-                            <Music4 className="w-6 h-6 text-neon-pink" />
+                            <Music className="w-6 h-6 text-neon-pink" />
                           </div>
                         )}
                       </div>
@@ -409,7 +409,7 @@ export function SetListManager({
                           />
                         ) : (
                           <div className="w-12 h-12 rounded-md flex items-center justify-center bg-neon-purple/20 flex-shrink-0">
-                            <Music4 className="w-6 h-6 text-neon-pink" />
+                            <Music className="w-6 h-6 text-neon-pink" />
                           </div>
                         )}
                       </div>
@@ -582,7 +582,7 @@ export function SetListManager({
                               />
                             ) : (
                               <div className="w-12 h-12 rounded-md flex items-center justify-center bg-neon-purple/20 flex-shrink-0">
-                                <Music4 className="w-6 h-6 text-neon-pink" />
+                                <Music className="w-6 h-6 text-neon-pink" />
                               </div>
                             )}
                           </div>
