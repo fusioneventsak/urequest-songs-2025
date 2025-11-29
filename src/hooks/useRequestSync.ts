@@ -45,8 +45,10 @@ export function useRequestSync({
 
   // Optimized fetch with caching and deduplication
   const fetchRequests = useCallback(async (bypassCache = false) => {
+    console.log('📋 [useRequestSync] Starting fetch requests...');
     // Prevent concurrent fetches
     if (fetchInProgressRef.current) { 
+      console.log('⏳ [useRequestSync] Fetch already in progress, skipping');
       return;
     }
     
@@ -182,27 +184,21 @@ export function useRequestSync({
         console.error('❌ CRITICAL: mountedRef.current is FALSE - component unmounted!');
       }
     } catch (error) {
-      console.error('❌ Error fetching requests:', error); 
-        // Try to use cached data if available
-        const cachedRequests = cacheRef.current?.data;
-        if (cachedRequests) {
-          console.log('Using cached requests due to fetch error');
-          setRequests(cachedRequests);
-        }
-        setError(error instanceof Error ? error : new Error(String(error)));
-         
-        // Retry logic with exponential backoff
-        if (retryCount < MAX_RETRY_ATTEMPTS) {
-          const delay = RETRY_DELAY * Math.pow(2, retryCount);
-          setTimeout(() => {
-            setRetryCount(prev => prev + 1);
-            fetchRequests(true);
-          }, delay);
-        } 
-    } finally {
+      const errorMsg = error instanceof Error ? error.message : String(error);
+      console.error('❌ [useRequestSync] Error fetching requests:', errorMsg);
+      console.error('❌ [useRequestSync] Full error:', error);
+      // Try to use cached data if available
+      const cachedRequests = cacheRef.current?.data;
+      if (cachedRequests) {
+        console.log('📦 [useRequestSync] Using cached requests due to fetch error');
+        setRequests(cachedRequests);
+      }
       if (mountedRef.current) {
+        setError(error instanceof Error ? error : new Error(String(error)));
         setIsLoading(false);
       }
+    } finally {
+      console.log('✅ [useRequestSync] Fetch completed');
       fetchInProgressRef.current = false;
     }
   }, [setRequests]);

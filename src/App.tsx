@@ -283,17 +283,11 @@ function App() {
     setIsBackend(false);
     setIsKiosk(false);
   }, []);
-
   // Handle navigation to kiosk mode
   const navigateToKiosk = useCallback(() => {
     window.history.pushState({}, '', `/${KIOSK_PATH}`);
     setIsBackend(false);
     setIsKiosk(true);
-  }, []);
-
-  // Handle admin login
-  const handleAdminLogin = useCallback(() => {
-    localStorage.setItem('backendAuth', 'true');
     setIsAdmin(true);
   }, []);
 
@@ -927,15 +921,18 @@ function App() {
     );
   }
 
-  // Show backend interface if in backend mode
+  // Show backend interface
   if (isBackend) {
+    console.log('🔐 [App] Showing backend interface, isAdmin:', isAdmin);
     if (!isAdmin) {
+      console.log('🔑 [App] Showing BackendLogin (not authenticated)');
       return (
         <ErrorBoundary>
           <BackendLogin onLogin={handleAdminLogin} />
         </ErrorBoundary>
       );
     }
+    console.log('✅ [App] Showing backend dashboard (authenticated)');
 
     // Show loading state if data is still being fetched
     const isLoadingData = songs.length === 0 && requests.length === 0 && setLists.length === 0;
@@ -1060,6 +1057,8 @@ function App() {
   }
 
   // Show frontend interface
+  console.log('🎵 [App] Showing frontend interface');
+  console.log('📊 [App] Data loaded - songs:', songs.length, 'requests:', mergedRequests.length, 'setLists:', setLists.length);
   return (
     <ErrorBoundary>
       <UserFrontend 

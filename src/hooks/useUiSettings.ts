@@ -129,11 +129,21 @@ export function useUiSettings() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      const { data: allSettings, error: fetchError } = await supabase
+      // Add 5-second timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Settings fetch timeout')), 5000)
+      );
+
+      const fetchPromise = supabase
         .from('ui_settings')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1);
+
+      const { data: allSettings, error: fetchError } = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]) as any;
 
       if (fetchError) throw fetchError;
       
@@ -230,11 +240,20 @@ export function useUiSettings() {
 
     if (hasColorChanges) {
       // Get current settings to merge with new settings
-      const { data: currentSettings } = await supabase
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Settings fetch timeout')), 5000)
+      );
+
+      const fetchPromise = supabase
         .from('ui_settings')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1);
+
+      const { data: currentSettings } = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]) as any;
 
       const mergedSettings = {
         ...DEFAULT_SETTINGS,
@@ -288,14 +307,29 @@ export function useUiSettings() {
 
     // Then update the database in the background
     try {
-      const { data: currentSettings } = await supabase
+      // Add timeout for database fetch
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Settings fetch timeout')), 5000)
+      );
+
+      const fetchPromise = supabase
         .from('ui_settings')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(1);
 
+      const { data: currentSettings } = await Promise.race([
+        fetchPromise,
+        timeoutPromise
+      ]) as any;
+
       if (!currentSettings || currentSettings.length === 0) {
-        const { error: createError } = await supabase
+        // Add timeout for insert
+        const insertTimeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Settings insert timeout')), 5000)
+        );
+
+        const insertPromise = supabase
           .from('ui_settings')
           .insert({
             ...DEFAULT_SETTINGS,
@@ -303,15 +337,30 @@ export function useUiSettings() {
             updated_at: new Date().toISOString()
           });
 
+        const { error: createError } = await Promise.race([
+          insertPromise,
+          insertTimeoutPromise
+        ]) as any;
+
         if (createError) throw createError;
       } else {
-        const { error: updateError } = await supabase
+        // Add timeout for update
+        const updateTimeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Settings update timeout')), 5000)
+        );
+
+        const updatePromise = supabase
           .from('ui_settings')
           .update({
             ...newSettings,
             updated_at: new Date().toISOString()
           })
           .eq('id', currentSettings[0].id);
+
+        const { error: updateError } = await Promise.race([
+          updatePromise,
+          updateTimeoutPromise
+        ]) as any;
 
         if (updateError) throw updateError;
       }
