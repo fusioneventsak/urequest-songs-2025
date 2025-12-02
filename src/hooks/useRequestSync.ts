@@ -114,6 +114,8 @@ export function useRequestSync({
         return;
       }
 
+      console.log('📡 [useRequestSync] Fetched', requestsData.length, 'requests from database');
+
       // Transform to SongRequest format
       const transformedRequests: SongRequest[] = requestsData.map(request => ({
         id: request.id,
@@ -137,6 +139,10 @@ export function useRequestSync({
       }));
 
       if (mountedRef.current) {
+        const playedCount = transformedRequests.filter(r => r.isPlayed).length;
+        const activeCount = transformedRequests.filter(r => !r.isPlayed).length;
+        console.log('📡 [useRequestSync] Setting requests - Active:', activeCount, 'Played:', playedCount);
+
         setRequestsRef.current(transformedRequests);
         cacheRef.current = { data: transformedRequests, timestamp: Date.now() };
         lastUpdateRef.current = Date.now();
@@ -186,15 +192,31 @@ export function useRequestSync({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'requests' },
         (payload) => {
+          console.log('📡 [useRequestSync] Received requests change event:', payload.eventType, payload.new?.id || payload.old?.id);
+
           const eventUserId = payload.new?.user_id || payload.old?.user_id;
           if (eventUserId && eventUserId !== currentUserIdRef.current) {
+            console.log('📡 [useRequestSync] Ignoring event for different user:', eventUserId, 'vs', currentUserIdRef.current);
             return;
           }
 
+          // Immediate fetch for played/locked status changes, debounce for other changes
+          const isStatusChange = payload.eventType === 'UPDATE' &&
+            (payload.new?.is_played !== payload.old?.is_played ||
+             payload.new?.is_locked !== payload.old?.is_locked);
+
           if (debounceTimer) clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
+
+          if (isStatusChange) {
+            // Immediate fetch for status changes (mark as played, lock/unlock)
+            console.log('📡 [useRequestSync] Status change detected, fetching immediately');
             fetchRequests(true);
-          }, 500);
+          } else {
+            // Debounce other changes
+            debounceTimer = setTimeout(() => {
+              fetchRequests(true);
+            }, 300);
+          }
         }
       )
       .on(
