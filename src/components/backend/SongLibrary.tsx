@@ -278,24 +278,9 @@ export function SongLibrary({ songs, onAddSong, onUpdateSong, onDeleteSong }: So
 
   const handleDeleteSong = async (id: string) => {
     if (window.confirm('Are you sure you want to delete this song?')) {
-      // Optimistic update - remove from UI immediately
+      // Delegate to parent - App.tsx handles optimistic update and Supabase delete
       if (onDeleteSong && typeof onDeleteSong === 'function') {
         onDeleteSong(id);
-      }
-
-      try {
-        const { error } = await supabase
-          .from('songs')
-          .delete()
-          .eq('id', id);
-
-        if (error) throw error;
-
-        console.log('✅ Song deleted successfully:', id);
-        // Real-time subscription will handle the update for other clients
-      } catch (error) {
-        console.error('Error deleting song:', error);
-        alert('Error deleting song. Please try again.');
       }
     }
   };
