@@ -23,9 +23,14 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
   // Deduplicate and merge requests for the same song
   const activeRequests = useMemo(() => {
     if (!requests || !Array.isArray(requests)) {
-      console.log('No requests array provided to UpvoteList');
+      console.log('🎵 [UpvoteList] No requests array provided');
       return [];
     }
+
+    // Log incoming requests for debugging real-time sync
+    const playedCount = requests.filter(r => r?.isPlayed).length;
+    const unplayedCount = requests.filter(r => r && !r.isPlayed).length;
+    console.log(`🎵 [UpvoteList] Received ${requests.length} requests (${unplayedCount} active, ${playedCount} played)`);
 
     // Filter out played requests
     const filtered = requests.filter(request => request && !request.isPlayed);

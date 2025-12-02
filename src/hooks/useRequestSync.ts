@@ -178,10 +178,16 @@ export function useRequestSync({
     }
 
     const effectiveUserId = currentUserIdRef.current;
-    if (!effectiveUserId) return;
+    if (!effectiveUserId) {
+      console.log('📡 [useRequestSync] No userId, skipping subscription setup');
+      return;
+    }
 
     // Create unique channel name for user isolation
+    // Include route info for debugging
+    const route = window.location.pathname;
     const channelName = `requests_user_${effectiveUserId}_${Date.now()}`;
+    console.log(`📡 [useRequestSync] Setting up subscription on ${route} - channel: ${channelName}`);
 
     let debounceTimer: NodeJS.Timeout | null = null;
 
@@ -192,11 +198,12 @@ export function useRequestSync({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'requests' },
         (payload) => {
-          console.log('📡 [useRequestSync] Received requests change event:', payload.eventType, payload.new?.id || payload.old?.id);
+          const currentRoute = window.location.pathname;
+          console.log(`📡 [useRequestSync:${currentRoute}] Received requests change event:`, payload.eventType, payload.new?.id || payload.old?.id);
 
           const eventUserId = payload.new?.user_id || payload.old?.user_id;
           if (eventUserId && eventUserId !== currentUserIdRef.current) {
-            console.log('📡 [useRequestSync] Ignoring event for different user:', eventUserId, 'vs', currentUserIdRef.current);
+            console.log(`📡 [useRequestSync:${currentRoute}] Ignoring event for different user:`, eventUserId, 'vs', currentUserIdRef.current);
             return;
           }
 
@@ -209,7 +216,7 @@ export function useRequestSync({
 
           if (isStatusChange) {
             // Immediate fetch for status changes (mark as played, lock/unlock)
-            console.log('📡 [useRequestSync] Status change detected, fetching immediately');
+            console.log(`📡 [useRequestSync:${currentRoute}] Status change detected (is_played: ${payload.old?.is_played} → ${payload.new?.is_played}), fetching immediately`);
             fetchRequests(true);
           } else {
             // Debounce other changes
@@ -249,7 +256,20 @@ export function useRequestSync({
           }, 200);
         }
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        const currentRoute = window.location.pathname;
+        if (status === 'SUBSCRIBED') {
+          console.log(`✅ [useRequestSync:${currentRoute}] Successfully subscribed to channel ${channelName}`);
+        } else if (status === 'CHANNEL_ERROR') {
+          console.error(`❌ [useRequestSync:${currentRoute}] Channel error on ${channelName}:`, err);
+        } else if (status === 'TIMED_OUT') {
+          console.warn(`⏰ [useRequestSync:${currentRoute}] Subscription timed out for ${channelName}`);
+        } else if (status === 'CLOSED') {
+          console.log(`🔒 [useRequestSync:${currentRoute}] Channel ${channelName} closed`);
+        } else {
+          console.log(`📡 [useRequestSync:${currentRoute}] Subscription status: ${status}`);
+        }
+      });
 
     subscriptionRef.current = subscription;
 
