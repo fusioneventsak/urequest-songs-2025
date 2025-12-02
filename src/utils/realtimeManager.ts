@@ -29,100 +29,75 @@ export const RealtimeManager = {
 
   /**
    * Check if currently connected
+   * Note: In Supabase JS v2, we track connection state locally since
+   * the realtime API has changed.
    */
   isConnected: () => {
-    return supabase.realtime.isConnected();
+    // Check if our manager thinks we're connected
+    if (connectionState === 'connected') {
+      return true;
+    }
+    // Also check if there are active channels (connection established)
+    if (activeChannels.size > 0) {
+      return true;
+    }
+    // Try the Supabase API if available
+    try {
+      return supabase.realtime?.connectionState === 'open';
+    } catch {
+      return false;
+    }
   },
 
   /**
    * Initialize realtime connection
+   * Note: In Supabase JS v2, realtime connections are established automatically
+   * when you subscribe to a channel. This method now just marks the manager as ready.
    */
   init: async () => {
-    if (isConnecting || RealtimeManager.isConnected()) {
-      console.log('Realtime already connected or connecting, skipping initialization');
+    if (isConnecting) {
+      console.log('Realtime initialization already in progress, skipping');
       return;
     }
-    
+
     // Check if we've reached the maximum number of connections
     if (activeConnectionCount >= MAX_CONNECTIONS) {
       console.warn(`Maximum number of connections (${MAX_CONNECTIONS}) reached. Closing oldest connection.`);
-      
+
       // Close the oldest channel
       const oldestChannelId = Array.from(activeChannels.keys())[0];
       if (oldestChannelId) {
         await RealtimeManager.removeSubscription(oldestChannelId);
       }
     }
-    
+
     isConnecting = true;
     updateConnectionState('connecting');
-    
+
     try {
-      console.log('Initializing realtime connection...');
-      await supabase.realtime.connect();
-      
-      // Check connection status after connect() call
-      if (RealtimeManager.isConnected()) {
-        console.log('✅ Realtime connection established successfully');
-        updateConnectionState('connected');
-        activeConnectionCount++;
-        
-        // Log successful connection
-        try {
-          await supabase
-            .from('realtime_connection_logs')
-            .insert({
-              status: 'connected',
-              client_id: CLIENT_ID,
-              created_at: new Date().toISOString()
-            });
-          console.log('Connection logged successfully');
-        } catch (logError) {
-          console.warn('Failed to log connection:', logError);
-        }
-      } else {
-        console.warn('❌ Failed to establish realtime connection');
-        updateConnectionState('disconnected');
-        
-        // Log connection failure
-        try {
-          await supabase
-            .from('realtime_connection_logs')
-            .insert({
-              status: 'disconnected',
-              client_id: CLIENT_ID,
-              error_message: 'Failed to establish connection',
-              created_at: new Date().toISOString()
-            });
-        } catch (logError) {
-          console.warn('Failed to log connection failure:', logError);
-        }
-      }
-      
-      // Set a timeout to verify connection status after a delay
-      setTimeout(() => {
-        if (connectionState === 'connecting') {
-          console.warn('Connection timeout - still in connecting state');
-          updateConnectionState('disconnected');
-        }
-      }, 10000); // 10 second timeout
+      console.log('📡 [RealtimeManager] Initializing realtime manager...');
+
+      // In Supabase JS v2, we don't need to explicitly connect.
+      // The connection is established automatically when subscribing to channels.
+      // Just mark as ready to accept subscriptions.
+      console.log('✅ [RealtimeManager] Ready for channel subscriptions');
+      updateConnectionState('connected');
+      activeConnectionCount++;
+
+      // Log initialization (non-blocking)
+      supabase
+        .from('realtime_connection_logs')
+        .insert({
+          status: 'connected',
+          client_id: CLIENT_ID,
+          created_at: new Date().toISOString()
+        })
+        .then(() => console.log('Connection logged successfully'))
+        .catch((logError: any) => console.warn('Failed to log connection:', logError));
+
     } catch (error) {
-      console.error('Error connecting to realtime:', error);
+      console.error('❌ [RealtimeManager] Error during initialization:', error);
       updateConnectionState('error', error instanceof Error ? error : new Error(String(error)));
-      
-      // Log connection error
-      try {
-        await supabase
-          .from('realtime_connection_logs')
-          .insert({
-            status: 'error',
-            client_id: CLIENT_ID,
-            error_message: error instanceof Error ? error.message : String(error),
-            created_at: new Date().toISOString()
-          });
-      } catch (logError) {
-        console.warn('Failed to log connection error:', logError);
-      }
     } finally {
       isConnecting = false;
     }
