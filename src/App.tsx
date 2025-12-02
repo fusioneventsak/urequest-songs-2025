@@ -857,6 +857,7 @@ function App() {
   }, [isOnline, userId]);
 
   // Handle marking a request as played
+  // This now marks ALL duplicate requests (same title/artist) as played
   const handleMarkAsPlayed = useCallback(async (id: string) => {
     if (!isOnline) {
       toast.error('Cannot update requests while offline. Please check your internet connection.');
@@ -864,15 +865,36 @@ function App() {
     }
 
     try {
-      console.log(`✅ Marking request as played: ${id}`);
-      
+      // Find the request to get its title and artist
+      const request = requests.find(r => r.id === id);
+      if (!request) {
+        console.error('Request not found:', id);
+        toast.error('Request not found.');
+        return false;
+      }
+
+      console.log(`✅ Marking request as played: ${id} (${request.title} by ${request.artist})`);
+
+      // Find ALL request IDs that match this song (same title/artist)
+      // This handles the duplicate song issue where the same song can have multiple request rows
+      const duplicateIds = requests
+        .filter(r =>
+          r.title.toLowerCase().trim() === request.title.toLowerCase().trim() &&
+          (r.artist || '').toLowerCase().trim() === (request.artist || '').toLowerCase().trim() &&
+          !r.isPlayed
+        )
+        .map(r => r.id);
+
+      console.log(`📋 Found ${duplicateIds.length} duplicate requests for this song:`, duplicateIds);
+
+      // Mark ALL matching requests as played
       const { error } = await supabase
         .from('requests')
-        .update({ 
+        .update({
           is_played: true,
           is_locked: false
         })
-        .eq('id', id);
+        .in('id', duplicateIds);
 
       if (error) throw error;
 
@@ -883,7 +905,7 @@ function App() {
       toast.error('Failed to mark request as played. Please try again.');
       return false;
     }
-  }, [isOnline]);
+  }, [isOnline, requests]);
 
   // Handle removing a request with optimistic updates
   const handleRemoveRequest = useCallback(async (id: string) => {
