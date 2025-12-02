@@ -282,7 +282,7 @@ export function SetListManager({
                 id="name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className="w-full px-3 py-2 bg-neon-purple/10 border border-neon-purple/20 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-neon-pink"
+                className="w-full px-3 py-2 bg-white border border-neon-purple/20 rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:border-neon-pink"
                 placeholder="Enter set list name"
                 required
               />
@@ -297,7 +297,7 @@ export function SetListManager({
                 id="date"
                 value={formData.date}
                 onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                className="w-full px-3 py-2 bg-neon-purple/10 border border-neon-purple/20 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-neon-pink"
+                className="w-full px-3 py-2 bg-white border border-neon-purple/20 rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:border-neon-pink"
                 required
               />
             </div>
@@ -311,7 +311,7 @@ export function SetListManager({
               id="notes"
               value={formData.notes}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-              className="w-full px-3 py-2 bg-neon-purple/10 border border-neon-purple/20 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-neon-pink"
+              className="w-full px-3 py-2 bg-white border border-neon-purple/20 rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:border-neon-pink"
               placeholder="Optional notes for this set list"
               rows={3}
             />
@@ -351,15 +351,36 @@ export function SetListManager({
               <label className="block text-sm font-medium text-gray-300">
                 Select Songs ({selectedSongs.length} selected)
               </label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search songs..."
-                  className="pl-9 pr-3 py-1 text-sm bg-neon-purple/10 border border-neon-purple/20 rounded-md text-white placeholder-gray-400 focus:outline-none focus:border-neon-pink"
-                />
+              <div className="flex items-center gap-3">
+                {/* Select/Deselect All buttons - only show when NOT in genre mode */}
+                {!isCreatingByGenre && (
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSongs([...filteredSongs])}
+                      className="px-2 py-1 text-xs bg-green-600/20 text-green-300 hover:bg-green-600/30 rounded border border-green-500/30"
+                    >
+                      Select All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedSongs([])}
+                      className="px-2 py-1 text-xs bg-red-600/20 text-red-300 hover:bg-red-600/30 rounded border border-red-500/30"
+                    >
+                      Deselect All
+                    </button>
+                  </div>
+                )}
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search songs..."
+                    className="pl-9 pr-3 py-1 text-sm bg-white border border-neon-purple/20 rounded-md text-gray-900 placeholder-gray-500 focus:outline-none focus:border-neon-pink"
+                  />
+                </div>
               </div>
             </div>
 

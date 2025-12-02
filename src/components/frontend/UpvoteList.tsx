@@ -151,7 +151,7 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
               key={request.id}
               className={`glass-effect rounded-lg p-4 relative overflow-hidden transition-all duration-300 ${
                 request.isLocked
-                ? 'ring-2 ring-yellow-400 shadow-lg shadow-yellow-400/20'
+                ? 'ring-2 ring-pink-500 shadow-lg shadow-pink-500/30'
                 : isHotTrack
                 ? 'ring-2 ring-red-400/50 shadow-lg shadow-red-400/10'
                 : isTopRequest
@@ -160,24 +160,24 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
               }`}
               style={{
                 border: songCardGradient && !isSpecialStatus ? '2px solid transparent' : '1px solid',
-                borderColor: isSpecialStatus ? (request.isLocked ? '#FBBF24' : isHotTrack ? '#EF4444' : '#10B981') : (!songCardGradient ? accentColor : undefined),
+                borderColor: isSpecialStatus ? (request.isLocked ? '#EC4899' : isHotTrack ? '#EF4444' : '#10B981') : (!songCardGradient ? accentColor : undefined),
                 backgroundImage: songCardGradient && !isSpecialStatus
                   ? `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), ${songCardGradient}`
                   : `linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02)), linear-gradient(to right, ${songCardColor}60, ${songCardColor}10)`,
                 backgroundOrigin: songCardGradient && !isSpecialStatus ? 'border-box' : undefined,
                 backgroundClip: songCardGradient && !isSpecialStatus ? 'padding-box, border-box' : undefined,
                 boxShadow: isSpecialStatus
-                  ? (request.isLocked ? `0 0 12px rgba(251, 191, 36, 0.3)` : isHotTrack ? `0 0 12px rgba(239, 68, 68, 0.3)` : `0 0 12px rgba(16, 185, 129, 0.3)`)
+                  ? (request.isLocked ? `0 0 20px rgba(236, 72, 153, 0.5)` : isHotTrack ? `0 0 12px rgba(239, 68, 68, 0.3)` : `0 0 12px rgba(16, 185, 129, 0.3)`)
                   : `0 0 8px ${accentColor}50`
               }}
             >
               {/* Gradient overlay for locked/hot tracks */}
               {(request.isLocked || isHotTrack || isTopRequest) && (
                 <div
-                  className="absolute inset-0 pointer-events-none opacity-10"
+                  className="absolute inset-0 pointer-events-none opacity-20"
                   style={{
                     background: request.isLocked
-                      ? 'linear-gradient(135deg, rgba(251, 191, 36, 0.3), transparent)'
+                      ? 'linear-gradient(135deg, rgba(236, 72, 153, 0.4), transparent)'
                       : isHotTrack
                       ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.3), transparent)'
                       : 'linear-gradient(135deg, rgba(16, 185, 129, 0.3), transparent)'
@@ -208,9 +208,9 @@ export function UpvoteList({ requests, onVote, currentUserId, votingStates = new
                   <div className="flex items-center gap-4 text-xs">
                     {/* Status Badge */}
                     {request.isLocked ? (
-                      <div className="flex items-center gap-1 px-2 py-0.5 bg-yellow-600/20 text-yellow-300 rounded-full font-bold">
+                      <div className="flex items-center gap-1 px-2 py-0.5 bg-pink-600/30 text-pink-300 rounded-full font-bold">
                         <Crown className="w-3 h-3" />
-                        <span>Next Up</span>
+                        <span>Up Next</span>
                       </div>
                     ) : isHotTrack ? (
                       <div className="flex items-center gap-1 px-2 py-0.5 bg-red-600/20 text-red-300 rounded-full font-bold">

@@ -18,6 +18,7 @@ interface QueueViewProps {
   onResetQueue?: () => void;
   isOnline?: boolean;
   activeSetList?: any; // SetList with songs from multiple active setlists
+  userId?: string | null; // Multi-tenancy: owner user ID
 }
 
 const decodeTitle = (title: string) => {
@@ -36,7 +37,8 @@ export function QueueView({
   onRemoveRequest,
   onResetQueue,
   isOnline = true,
-  activeSetList
+  activeSetList,
+  userId
 }: QueueViewProps) {
   const [lockingStates, setLockingStates] = useState<Set<string>>(new Set());
   const [expandedRequests, setExpandedRequests] = useState<Set<string>>(new Set());
@@ -288,13 +290,14 @@ export function QueueView({
     
     try {
       // Use the atomic database function for better performance
+      // Pass p_user_id for multi-tenancy support
       if (newLockedState) {
         // Lock this request (and unlock all others)
-        const { error } = await supabase.rpc('lock_request', { request_id: id });
+        const { error } = await supabase.rpc('lock_request', { request_id: id, p_user_id: userId });
         if (error) throw error;
       } else {
         // Just unlock this request
-        const { error } = await supabase.rpc('unlock_request', { request_id: id });
+        const { error } = await supabase.rpc('unlock_request', { request_id: id, p_user_id: userId });
         if (error) throw error;
       }
 
@@ -442,6 +445,12 @@ export function QueueView({
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      {displayLocked && (
+                        <div className="flex items-center gap-1 bg-gradient-to-r from-pink-500 to-pink-600 px-2 py-1 rounded-full animate-pulse flex-shrink-0">
+                          <Lock className="w-4 h-4 text-white" />
+                          <span className="text-xs font-bold text-white uppercase">Up Next</span>
+                        </div>
+                      )}
                       <h3 className="text-base md:text-lg font-semibold text-white truncate">
                         {decodeTitle(request.title)}
                       </h3>

@@ -2,8 +2,6 @@ import { useEffect, useCallback, useState, useRef } from 'react';
 import { supabase } from '../utils/supabase';
 import type { SongRequest } from '../types';
 
-console.log('🔥🔥🔥 USE REQUEST SYNC FILE LOADED - WITH SOURCE FIELD FIX 🔥🔥🔥');
-
 const CACHE_DURATION = 30000; // 30 seconds
 const MAX_RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000;
@@ -18,82 +16,76 @@ interface UseRequestSyncProps {
   setRequests: (requests: SongRequest[]) => void;
   isOnline: boolean;
   currentUser: any;
+  userId?: string | null; // Optional user ID for multi-tenant filtering
 }
 
 export function useRequestSync({
   requests,
   setRequests,
   isOnline,
-  currentUser
+  currentUser,
+  userId
 }: UseRequestSyncProps) {
-  console.log('🔥🔥🔥 useRequestSync HOOK CALLED 🔥🔥🔥');
-  console.log('📊 Hook params:', {
-    requestsCount: requests.length,
-    setRequestsType: typeof setRequests,
-    isOnline,
-    currentUser: currentUser?.name || 'null'
-  });
-
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+
+  // Refs to avoid circular dependencies
   const mountedRef = useRef(true);
   const subscriptionRef = useRef<any | null>(null);
   const fetchInProgressRef = useRef<boolean>(false);
   const cacheRef = useRef<CachedData | null>(null);
   const lastUpdateRef = useRef<number>(0);
+  const currentUserIdRef = useRef<string | null>(userId || null);
+  const setRequestsRef = useRef(setRequests);
+  const initializedRef = useRef(false);
 
-  // Optimized fetch with caching and deduplication
+  // Keep setRequests ref up to date
+  setRequestsRef.current = setRequests;
+
+  // Stable fetch function using refs to avoid dependency issues
   const fetchRequests = useCallback(async (bypassCache = false) => {
-    console.log('📋 [useRequestSync] Starting fetch requests...');
     // Prevent concurrent fetches
-    if (fetchInProgressRef.current) { 
-      console.log('⏳ [useRequestSync] Fetch already in progress, skipping');
+    if (fetchInProgressRef.current) {
       return;
     }
-    
+
+    // Get effective user ID from ref (updated by effect)
+    const effectiveUserId = currentUserIdRef.current;
+
     // Check cache if not bypassing
     if (!bypassCache && cacheRef.current) {
       const { data, timestamp } = cacheRef.current;
       if (data) {
         const age = Date.now() - timestamp;
-        
-        if (age < CACHE_DURATION && data.length > 0) { 
+        if (age < CACHE_DURATION && data.length > 0) {
           if (mountedRef.current) {
-            setRequests(data);
+            setRequestsRef.current(data);
             setIsLoading(false);
           }
           return;
         }
       }
     }
-    
+
     fetchInProgressRef.current = true;
-    
+
     try {
       if (!mountedRef.current) return;
-      
-      setIsLoading(true);
-      setError(null); 
 
-      // Fetch only ACTIVE requests (is_active=true) to show current queue
-      // Get current authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        console.log('❌ No authenticated user - returning empty requests');
+      setIsLoading(true);
+      setError(null);
+
+      if (!effectiveUserId) {
         const emptyResult: SongRequest[] = [];
         if (mountedRef.current) {
-          setRequests(emptyResult);
+          setRequestsRef.current(emptyResult);
           cacheRef.current = { data: emptyResult, timestamp: Date.now() };
         }
         return;
       }
 
-      console.log('🔄 Fetching requests for user:', user.id);
-      
-      // Fetch requests that belong to the current user (via user_id)
-      // RLS policies will automatically filter to user's data
+      // Fetch requests filtered by user_id for multi-tenancy
       const { data: requestsData, error: requestsError } = await supabase
         .from('requests')
         .select(`
@@ -107,280 +99,216 @@ export function useRequestSync({
             created_at
           )
         `)
-        .eq('is_active', true)  // Only fetch active requests for the queue
+        .eq('user_id', effectiveUserId)
+        .eq('is_active', true)
         .order('created_at', { ascending: false });
-      
-      console.log('🔍 DEBUG - Raw Supabase Response:');
-      console.log('- Error:', requestsError);
-      console.log('- Data length:', requestsData?.length || 0);
-      if (requestsData && requestsData.length > 0) {
-        console.log('- First request raw:', requestsData[0]);
-        console.log('🔍 CRITICAL - First request requesters array:', requestsData[0].requesters);
-        if (requestsData[0].requesters && requestsData[0].requesters.length > 0) {
-          console.log('🔍 CRITICAL - First requester object:', requestsData[0].requesters[0]);
-          console.log('🔍 CRITICAL - First requester source field:', requestsData[0].requesters[0].source);
-        }
-      }
 
-      if (requestsError) throw requestsError; 
+      if (requestsError) throw requestsError;
 
       if (!requestsData) {
-        console.log('❌ No requests found - requestsData is null/undefined');
         const emptyResult: SongRequest[] = [];
         if (mountedRef.current) {
-          setRequests(emptyResult);
+          setRequestsRef.current(emptyResult);
           cacheRef.current = { data: emptyResult, timestamp: Date.now() };
-        } 
+        }
         return;
       }
 
       // Transform to SongRequest format
-      console.log('🔄 Starting to format requests...');
-      const transformedRequests: SongRequest[] = requestsData.map(request => {
-        console.log(`📝 Formatting request: ${request.title}`);
-        console.log(`   - ID: ${request.id}`);
-        console.log(`   - is_played: ${request.is_played}`);
-        console.log(`   - votes: ${request.votes}`);
-        console.log(`   - requesters count: ${request.requesters?.length || 0}`);
-
-        return {
-          id: request.id,
-          title: request.title,
-          artist: request.artist || '',
-          albumArtUrl: request.album_art_url || undefined,
-          requesters: (request.requesters || []).map((requester: any) => {
-            const transformed = {
-              id: requester.id,
-              name: requester.name || 'Anonymous',
-              photo: requester.photo || '',
-              message: requester.message || '',
-              source: requester.source,  // Include source field for kiosk tracking
-              timestamp: requester.created_at  // Fixed: changed from createdAt to timestamp
-            };
-            console.log(`🔍 TRANSFORM - Input requester.source: ${requester.source}, Output source: ${transformed.source}`);
-            return transformed;
-          }),
-          votes: request.votes || 0,
-          status: request.status as any,
-          isLocked: request.is_locked || false,
-          isPlayed: request.is_played || false,
-          createdAt: new Date(request.created_at)
-        };
-      });
-
-      console.log('✅ Formatted requests:', transformedRequests.length); 
-      console.log('📊 Formatted data preview:', transformedRequests.map(r => ({
-        id: r.id,
-        title: r.title || 'Untitled',
-        isPlayed: r.isPlayed,
-        requesters: r.requesters.length
-      })));
+      const transformedRequests: SongRequest[] = requestsData.map(request => ({
+        id: request.id,
+        title: request.title,
+        artist: request.artist || '',
+        albumArtUrl: request.album_art_url || undefined,
+        user_id: request.user_id,
+        requesters: (request.requesters || []).map((requester: any) => ({
+          id: requester.id,
+          name: requester.name || 'Anonymous',
+          photo: requester.photo || '',
+          message: requester.message || '',
+          source: requester.source,
+          timestamp: requester.created_at
+        })),
+        votes: request.votes || 0,
+        status: request.status as any,
+        isLocked: request.is_locked || false,
+        isPlayed: request.is_played || false,
+        createdAt: new Date(request.created_at)
+      }));
 
       if (mountedRef.current) {
-        console.log('🚀 About to call setRequests with:', transformedRequests.length, 'requests');
-        console.log('🔍 setRequests function type:', typeof setRequests);
-        console.log('🔍 setRequests function reference ID:', setRequests.toString().substring(0, 50));
-        console.log('🔍 mountedRef.current:', mountedRef.current);
-        console.log('🔍 First 3 requests:', transformedRequests.slice(0, 3).map(r => ({
-          id: r.id,
-          title: r.title,
-          requesters: r.requesters.length
-        })));
-
-        console.log('⚡ CALLING setRequests NOW...');
-        setRequests(transformedRequests);
-        console.log('⚡ setRequests CALL COMPLETE');
-
-        console.log('✅ setRequests called successfully');
+        setRequestsRef.current(transformedRequests);
         cacheRef.current = { data: transformedRequests, timestamp: Date.now() };
         lastUpdateRef.current = Date.now();
         setRetryCount(0);
-      } else {
-        console.error('❌ CRITICAL: mountedRef.current is FALSE - component unmounted!');
       }
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : String(error);
-      console.error('❌ [useRequestSync] Error fetching requests:', errorMsg);
-      console.error('❌ [useRequestSync] Full error:', error);
-      // Try to use cached data if available
       const cachedRequests = cacheRef.current?.data;
       if (cachedRequests) {
-        console.log('📦 [useRequestSync] Using cached requests due to fetch error');
-        setRequests(cachedRequests);
+        setRequestsRef.current(cachedRequests);
       }
       if (mountedRef.current) {
         setError(error instanceof Error ? error : new Error(String(error)));
         setIsLoading(false);
       }
     } finally {
-      console.log('✅ [useRequestSync] Fetch completed');
       fetchInProgressRef.current = false;
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
-  }, [setRequests]);
-  
-  // Setup real-time subscription with debouncing and timeout
-  useEffect(() => {
-    let debounceTimer: NodeJS.Timeout | null = null;
-    let fetchTimeoutId: NodeJS.Timeout | null = null;
+  }, []); // No dependencies - uses refs
 
-    const setupSubscription = () => {
-      // Add timeout to prevent infinite waiting for initial fetch
-      fetchTimeoutId = setTimeout(() => {
-        if (fetchInProgressRef.current) {
-          console.warn('⚠️ Request sync fetch timeout - data may be incomplete');
-          fetchInProgressRef.current = false;
-          if (mountedRef.current) {
-            setIsLoading(false);
+  // Setup subscription - stable function, no dependencies on fetch
+  const setupSubscription = useCallback(() => {
+    // Clean up existing subscription
+    if (subscriptionRef.current) {
+      try {
+        subscriptionRef.current.unsubscribe();
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+      subscriptionRef.current = null;
+    }
+
+    const effectiveUserId = currentUserIdRef.current;
+    if (!effectiveUserId) return;
+
+    // Create unique channel name for user isolation
+    const channelName = `requests_user_${effectiveUserId}_${Date.now()}`;
+
+    let debounceTimer: NodeJS.Timeout | null = null;
+
+    // Subscribe to requests changes
+    const subscription = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'requests' },
+        (payload) => {
+          const eventUserId = payload.new?.user_id || payload.old?.user_id;
+          if (eventUserId && eventUserId !== currentUserIdRef.current) {
+            return;
           }
+
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            fetchRequests(true);
+          }, 500);
         }
-      }, 7000); // 7 second timeout for initial fetch
-      // Clean up existing subscription
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe(); 
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'requesters' },
+        (payload) => {
+          const eventUserId = payload.new?.user_id || payload.old?.user_id;
+          if (eventUserId && eventUserId !== currentUserIdRef.current) {
+            return;
+          }
+
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            fetchRequests(true);
+          }, 300);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'user_votes' },
+        (payload) => {
+          const eventOwnerId = payload.new?.owner_id || payload.old?.owner_id;
+          if (eventOwnerId && eventOwnerId !== currentUserIdRef.current) {
+            return;
+          }
+
+          if (debounceTimer) clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            fetchRequests(true);
+          }, 200);
+        }
+      )
+      .subscribe();
+
+    subscriptionRef.current = subscription;
+
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+    };
+  }, [fetchRequests]);
+
+  // SINGLE consolidated effect for initialization and userId changes
+  useEffect(() => {
+    // Update the ref
+    const previousUserId = currentUserIdRef.current;
+    currentUserIdRef.current = userId || null;
+
+    if (!isOnline) return;
+
+    // Only fetch/subscribe if userId changed or first initialization
+    const userIdChanged = previousUserId !== currentUserIdRef.current;
+    const needsInit = !initializedRef.current;
+
+    if (userIdChanged || needsInit) {
+      // Clear cache on user change
+      if (userIdChanged) {
+        cacheRef.current = null;
       }
 
-      // Subscribe to requests changes
-      const subscription = supabase
-        .channel('requests_channel')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'requests'
-          },
-          (payload) => {
-            console.log('📡 Request change detected:', payload.eventType);
-            
-            // Debounce rapid changes
-            if (debounceTimer) {
-              clearTimeout(debounceTimer);
-            }
-            
-            debounceTimer = setTimeout(() => {
-              const timeSinceLastUpdate = Date.now() - lastUpdateRef.current;
+      initializedRef.current = true;
 
-              // Only refetch if enough time has passed or it's a critical change
-              // INSERT/UPDATE events always trigger refetch
-              if (timeSinceLastUpdate > 2000 || payload.eventType === 'DELETE' || payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-                fetchRequests(true);
-              }
-            }, 500);
-          }
-        ) 
-        .on(
-          'postgres_changes',
-          {
-            event: '*', 
-            schema: 'public',
-            table: 'requesters'
-          },
-          (payload) => { 
-            console.log('📡 Requester change detected:', payload.eventType);
-            
-            if (debounceTimer) {
-              clearTimeout(debounceTimer); 
-            }
-            
-            debounceTimer = setTimeout(() => {
-              fetchRequests(true);
-            }, 300);
-          }
-        ) 
-        .on(
-          'postgres_changes',
-          {
-            event: '*', 
-            schema: 'public',
-            table: 'user_votes'
-          },
-          (payload) => { 
-            console.log('📡 Vote change detected:', payload.eventType);
-            
-            if (debounceTimer) {
-              clearTimeout(debounceTimer); 
-            }
-            
-            debounceTimer = setTimeout(() => {
-              fetchRequests(true);
-            }, 200);
-          }
-        ) 
-        .subscribe();
-      subscriptionRef.current = subscription;
-      subscription.on('status', (status) => {
-          console.log('📡 Subscription status:', status);
-          if (status === 'SUBSCRIBED') {
-            console.log('✅ Real-time subscription active');
-          }
-        });
-    };
+      // Fetch data
+      fetchRequests(userIdChanged);
 
-    if (isOnline) {
-      console.log('🔄 Setting up real-time subscription for requests');
+      // Setup subscription
       setupSubscription();
     }
 
+    // Cleanup
     return () => {
-      if (debounceTimer) {
-        clearTimeout(debounceTimer);
-      }
-      if (fetchTimeoutId) {
-        clearTimeout(fetchTimeoutId);
-      }
       if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
+        try {
+          subscriptionRef.current.unsubscribe();
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+        subscriptionRef.current = null;
       }
     };
-  }, [fetchRequests, isOnline]);
-  
-  // Function to manually reconnect and refresh data
-  const reconnectRequests = useCallback(() => {
-    console.log('🔄 Manually reconnecting requests subscription');
-    
-    // Clean up existing subscription
-    if (subscriptionRef.current) {
-      try { 
-        subscriptionRef.current.unsubscribe(); 
-      } catch (e) {
-        console.warn('Error unsubscribing:', e);
-      }
-    }
-    
-    // Set up new subscription
-    if (isOnline) setupSubscription();
-     
-    // Force a fresh fetch
-    fetchRequests(true);
-  }, [fetchRequests]);
+  }, [userId, isOnline, fetchRequests, setupSubscription]);
 
-  // Initial fetch
-  useEffect(() => {
-    fetchRequests();
-  }, [fetchRequests]);
-
-  // Cleanup on unmount
+  // Mount/unmount tracking
   useEffect(() => {
     mountedRef.current = true;
-    console.log('🔧 useRequestSync: Setting mountedRef.current = TRUE');
-
     return () => {
-      console.log('🔧 useRequestSync: CLEANUP RUNNING - Setting mountedRef.current = FALSE');
       mountedRef.current = false;
-      if (subscriptionRef.current) {
-        subscriptionRef.current.unsubscribe();
-      }
     };
   }, []);
+
+  // Function to manually reconnect and refresh data
+  const reconnectRequests = useCallback(() => {
+    if (subscriptionRef.current) {
+      try {
+        subscriptionRef.current.unsubscribe();
+      } catch (e) {
+        // Ignore
+      }
+      subscriptionRef.current = null;
+    }
+
+    if (isOnline) {
+      setupSubscription();
+      fetchRequests(true);
+    }
+  }, [isOnline, setupSubscription, fetchRequests]);
 
   // Manual refresh function
   const refresh = useCallback(() => {
     cacheRef.current = null;
     fetchRequests(true);
-  }, [fetchRequests]); 
+  }, [fetchRequests]);
 
   return {
-    isLoading, 
+    isLoading,
     error,
     refresh,
     reconnectRequests

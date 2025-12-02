@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../utils/supabase';
-import { Trophy, Users, Award, Medal, Crown, Sparkles } from 'lucide-react';
+import { Trophy, Users, Award, Medal, Crown, Sparkles, AlertCircle } from 'lucide-react';
 import { useUiSettings } from '../../hooks/useUiSettings';
+import { useViewingContext, useEffectiveUserId } from '../../contexts/UserContext';
 
 interface TopRequester {
   name: string;
@@ -16,6 +17,10 @@ export function Leaderboard() {
   const [isLoading, setIsLoading] = useState(true);
   const { settings } = useUiSettings();
 
+  // Multi-tenancy: Get viewing context for slug-based public access
+  const { viewingSlug, isResolvingSlug, slugError, isPublicPage } = useViewingContext();
+  const effectiveUserId = useEffectiveUserId();
+
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
   const secondaryColor = settings?.frontend_secondary_accent || '#9d00ff';
   const bgColor = settings?.frontend_bg_color || '#0f051d';
@@ -23,6 +28,9 @@ export function Leaderboard() {
   const bandLogoUrl = settings?.band_logo_url || DEFAULT_BAND_LOGO;
 
   useEffect(() => {
+    // Don't load until we have an effective user ID (for multi-tenancy)
+    if (!effectiveUserId) return;
+
     loadTopRequesters();
 
     // Real-time subscription for updates
@@ -33,7 +41,8 @@ export function Leaderboard() {
         {
           event: '*',
           schema: 'public',
-          table: 'requests'
+          table: 'requests',
+          filter: `user_id=eq.${effectiveUserId}`
         },
         () => {
           loadTopRequesters();
@@ -55,11 +64,13 @@ export function Leaderboard() {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [effectiveUserId]);
 
   const loadTopRequesters = async () => {
+    if (!effectiveUserId) return;
+
     try {
-      // Fetch only active requests with requesters
+      // Fetch only active requests with requesters for this band
       const { data: requests, error } = await supabase
         .from('requests')
         .select(`
@@ -71,6 +82,7 @@ export function Leaderboard() {
           )
         `)
         .eq('is_active', true)
+        .eq('user_id', effectiveUserId) // Multi-tenancy filter
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -280,6 +292,44 @@ export function Leaderboard() {
   };
 
   const sizes = getCardSizes();
+
+  // Show error if slug couldn't be resolved (band not found)
+  if (isPublicPage && slugError) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          background: 'linear-gradient(135deg, #13091f, #0a0513)'
+        }}
+      >
+        <div className="max-w-md w-full bg-gray-800/50 rounded-xl p-8 text-center border border-red-500/20">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-white mb-2">Band Not Found</h1>
+          <p className="text-gray-400 mb-6">{slugError}</p>
+          <p className="text-sm text-gray-500">
+            If you received this link from someone, please ask them to check the URL is correct.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading while resolving slug
+  if (isPublicPage && isResolvingSlug) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background: 'linear-gradient(135deg, #13091f, #0a0513)'
+        }}
+      >
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-neon-pink border-t-transparent rounded-full animate-spin" />
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (

@@ -4,73 +4,87 @@ import { cacheService } from '../utils/cache';
 import { RealtimeManager } from '../utils/realtimeManager';
 import type { Song } from '../types';
 
-const SONGS_CACHE_KEY = 'songs:all';
 const MAX_RETRY_ATTEMPTS = 3;
-const RETRY_DELAY = 1000; // 1 second base delay
+const RETRY_DELAY = 1000;
 
 interface UseSongSyncProps {
   songs: Song[];
   setSongs: (songs: Song[]) => void;
   isOnline: boolean;
+  userId?: string | null;
 }
 
 export function useSongSync({
   songs,
   setSongs,
-  isOnline
+  isOnline,
+  userId
 }: UseSongSyncProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+
+  // Refs to avoid circular dependencies
   const mountedRef = useRef(true);
   const subscriptionRef = useRef<string | null>(null);
   const fetchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fetchInProgressRef = useRef(false);
+  const currentUserIdRef = useRef<string | null>(userId || null);
+  const setSongsRef = useRef(setSongs);
+  const initializedRef = useRef(false);
 
-  // Fetch songs with simple error handling
+  // Keep setSongs ref up to date
+  setSongsRef.current = setSongs;
+
+  // Generate user-specific cache key
+  const getCacheKey = useCallback((uid: string | null) => {
+    return uid ? `songs:user:${uid}` : 'songs:all';
+  }, []);
+
+  // Stable fetch function using refs
   const fetchSongs = useCallback(async (bypassCache = false) => {
-    // Don't allow concurrent fetches
     if (fetchInProgressRef.current) {
-      console.log('Fetch already in progress, skipping');
       return;
     }
-    
+
     fetchInProgressRef.current = true;
-    
+
     try {
       if (!mountedRef.current) return;
-      
+
       setIsLoading(true);
       setError(null);
 
+      const effectiveUserId = currentUserIdRef.current;
+      const cacheKey = getCacheKey(effectiveUserId);
+
       // Check cache first unless bypassing
       if (!bypassCache) {
-        const cachedSongs = cacheService.get<Song[]>(SONGS_CACHE_KEY);
+        const cachedSongs = cacheService.get<Song[]>(cacheKey);
         if (cachedSongs?.length > 0) {
-          console.log('Using cached songs');
-          if (mountedRef.current && setSongs) {
-            setSongs(cachedSongs);
+          if (mountedRef.current) {
+            setSongsRef.current(cachedSongs);
             setIsLoading(false);
           }
+          fetchInProgressRef.current = false;
           return;
         }
       }
 
-      // Get current authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        console.log('❌ No authenticated user - returning empty songs');
+      if (!effectiveUserId) {
+        console.log('🎵 useSongSync: No userId, returning empty array');
         const emptyResult: Song[] = [];
         if (mountedRef.current) {
-          setSongs(emptyResult);
-          cacheService.setSongs(SONGS_CACHE_KEY, emptyResult);
+          setSongsRef.current(emptyResult);
+          cacheService.set(cacheKey, emptyResult, 60000);
         }
+        fetchInProgressRef.current = false;
         return;
       }
 
-      // Fetch all songs (RLS policies should handle filtering, but for now fetch all)
-      console.log('🔄 Fetching all songs for authenticated user:', user.email);
+      console.log('🎵 useSongSync: Fetching songs for userId:', effectiveUserId);
+
+      // Fetch songs filtered by user_id for multi-tenancy
       const { data: songsData, error: songsError } = await supabase
         .from('songs')
         .select(`
@@ -85,39 +99,32 @@ export function useSongSync({
           created_at,
           updated_at
         `)
+        .eq('user_id', effectiveUserId)
         .order('title');
 
       if (songsError) throw songsError;
 
       if (songsData && mountedRef.current) {
-        if (songsData) {
-          cacheService.setSongs(SONGS_CACHE_KEY, songsData);
-          setSongs(songsData);
-        }
-        setRetryCount(0); // Reset retry count on success
+        console.log('🎵 useSongSync: Got', songsData.length, 'songs for user');
+        cacheService.set(cacheKey, songsData, 300000);
+        setSongsRef.current(songsData);
+        setRetryCount(0);
       }
     } catch (error) {
-      console.error('Error fetching songs:', error);
-      
       if (mountedRef.current) {
         setError(error instanceof Error ? error : new Error(String(error)));
-        
-        // Use cached data if available
-        const cachedSongs = cacheService.get<Song[]>(SONGS_CACHE_KEY);
+
+        const cacheKey = getCacheKey(currentUserIdRef.current);
+        const cachedSongs = cacheService.get<Song[]>(cacheKey);
         if (cachedSongs) {
-          console.warn('Using stale cache due to fetch error');
-          setSongs(cachedSongs);
+          setSongsRef.current(cachedSongs);
         }
-        
-        // Retry with exponential backoff
+
         if (retryCount < MAX_RETRY_ATTEMPTS) {
           const delay = RETRY_DELAY * Math.pow(2, retryCount);
-          console.log(`Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRY_ATTEMPTS})`);
-          
           if (fetchTimeoutRef.current) {
             clearTimeout(fetchTimeoutRef.current);
           }
-          
           fetchTimeoutRef.current = setTimeout(() => {
             if (mountedRef.current) {
               setRetryCount(prev => prev + 1);
@@ -132,82 +139,119 @@ export function useSongSync({
       }
       fetchInProgressRef.current = false;
     }
-  }, [setSongs, retryCount]);
+  }, [getCacheKey, retryCount]);
 
-  // Setup realtime subscription
-  useEffect(() => {
-    mountedRef.current = true;
-    
-    // Initialize RealtimeManager
-    RealtimeManager.init();
-    
-    // Setup subscription
-    const setupSubscription = () => {
-      try {
-        const subscription = RealtimeManager.createSubscription(
-          'songs',
-          (payload) => {
-            console.log('Songs changed:', payload.eventType);
-            fetchSongs(true);
+  // Setup subscription - stable function
+  const setupSubscription = useCallback(() => {
+    // Remove existing subscription
+    if (subscriptionRef.current) {
+      RealtimeManager.removeSubscription(subscriptionRef.current);
+      subscriptionRef.current = null;
+    }
+
+    const effectiveUserId = currentUserIdRef.current;
+    if (!effectiveUserId) return;
+
+    try {
+      const channelName = `songs_user_${effectiveUserId}`;
+
+      const subscription = RealtimeManager.createSubscription(
+        channelName,
+        (payload) => {
+          const eventUserId = payload.new?.user_id || payload.old?.user_id;
+          if (eventUserId && eventUserId !== currentUserIdRef.current) {
+            return;
           }
-        );
-        
-        subscriptionRef.current = subscription;
-      } catch (error) {
-        console.error('Error setting up realtime subscription:', error);
-      }
-    };
-    
-    // Initial fetch and subscription setup
-    if (isOnline) {
-      fetchSongs();
+          fetchSongs(true);
+        },
+        'songs'
+      );
+
+      subscriptionRef.current = subscription;
+    } catch (error) {
+      console.error('Error setting up realtime subscription:', error);
+    }
+  }, [fetchSongs]);
+
+  // SINGLE consolidated effect for initialization and userId changes
+  useEffect(() => {
+    // Update the ref
+    const previousUserId = currentUserIdRef.current;
+    currentUserIdRef.current = userId || null;
+
+    console.log('🎵 useSongSync effect:', {
+      userId,
+      previousUserId,
+      isOnline,
+      initialized: initializedRef.current
+    });
+
+    if (!isOnline) {
+      console.log('🎵 useSongSync: Offline, skipping');
+      return;
+    }
+
+    // Only fetch/subscribe if userId changed or first initialization
+    const userIdChanged = previousUserId !== currentUserIdRef.current;
+    const needsInit = !initializedRef.current;
+
+    console.log('🎵 useSongSync:', { userIdChanged, needsInit });
+
+    if (userIdChanged || needsInit) {
+      initializedRef.current = true;
+
+      // Initialize RealtimeManager
+      RealtimeManager.init();
+
+      console.log('🎵 useSongSync: Calling fetchSongs with userId:', currentUserIdRef.current);
+
+      // Fetch data
+      fetchSongs(userIdChanged);
+
+      // Setup subscription
       setupSubscription();
     }
-    
-    // REMOVED: Periodic polling interval setup
-    // No more setInterval for polling every 5 minutes
-    
-    // Cleanup on unmount
+
+    // Cleanup
     return () => {
-      mountedRef.current = false;
-      
-      // Clear any pending timeouts
       if (fetchTimeoutRef.current) {
         clearTimeout(fetchTimeoutRef.current);
       }
-      
-      // Remove subscription
       if (subscriptionRef.current) {
         RealtimeManager.removeSubscription(subscriptionRef.current);
+        subscriptionRef.current = null;
       }
     };
-  }, [fetchSongs]);
+  }, [userId, isOnline, fetchSongs, setupSubscription]);
+
+  // Mount/unmount tracking
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   // Function to manually reconnect
   const reconnectSongs = useCallback(() => {
-    console.log('🔄 Manually reconnecting songs subscription');
-    
-    // Clean up existing subscription
     if (subscriptionRef.current) {
       try {
-        subscriptionRef.current.unsubscribe();
+        RealtimeManager.removeSubscription(subscriptionRef.current);
       } catch (e) {
-        console.warn('Error unsubscribing:', e);
+        // Ignore
       }
+      subscriptionRef.current = null;
     }
-    
-    // Set up new subscription
+
     if (isOnline) {
       setupSubscription();
-      
-      // Force a fresh fetch
       fetchSongs(true);
     }
-  }, [fetchSongs, isOnline]);
+  }, [isOnline, setupSubscription, fetchSongs]);
 
-  return { 
-    isLoading, 
-    error, 
+  return {
+    isLoading,
+    error,
     refetch: () => fetchSongs(true),
     reconnectSongs
   };

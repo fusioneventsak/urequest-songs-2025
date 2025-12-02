@@ -19,6 +19,7 @@ export interface SongRequest {
   createdAt: string;
   created_at?: string; // Database column name (snake_case)
   source?: 'web' | 'kiosk'; // Request source
+  user_id?: string; // Owner of this request (for multi-tenancy)
 }
 
 export interface RequestFormData {
@@ -41,6 +42,7 @@ export interface Song {
   notes?: string;
   lastPlayed?: Date;
   albumArtUrl?: string;
+  user_id?: string; // Owner of this song (for multi-tenancy)
 }
 
 export interface SetList {
@@ -50,6 +52,7 @@ export interface SetList {
   songs: Song[];
   notes?: string;
   isActive?: boolean;
+  user_id?: string; // Owner of this setlist (for multi-tenancy)
 }
 
 export interface User {
@@ -75,6 +78,7 @@ export interface QueueStats {
 
 export interface UiSettings {
   id: string;
+  user_id?: string; // Owner of these settings (for multi-tenancy)
   band_name: string;
   primary_color: string;
   primary_use_gradient: boolean;

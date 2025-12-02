@@ -64,7 +64,13 @@ const applyColorsInstantly = (colors: Record<string, string>) => {
   console.log('Applied colors instantly via CSS injection:', colors);
 };
 
-export function useUiSettings() {
+interface UseUiSettingsProps {
+  userId?: string | null; // Optional user ID for multi-tenant filtering
+}
+
+export function useUiSettings(props?: UseUiSettingsProps) {
+  const { userId } = props || {};
+
   // All useState hooks first - fixed order
   const [settings, setSettings] = useState<UiSettings | null>(() => {
     // Initialize with defaults immediately - no loading state
@@ -74,6 +80,7 @@ export function useUiSettings() {
   const [timestamp, setTimestamp] = useState(Date.now());
   const [initialized, setInitialized] = useState(true); // Start as initialized
   const [error, setError] = useState<Error | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   // All useCallback hooks - fixed order
   const applyCssVariables = useCallback((newSettings: UiSettings) => {
@@ -129,10 +136,17 @@ export function useUiSettings() {
 
   const fetchSettings = useCallback(async () => {
     try {
-      // Get current authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
+      // Get effective user ID
+      let effectiveUserId = userId;
+      if (!effectiveUserId) {
+        const { data: { user } } = await supabase.auth.getUser();
+        effectiveUserId = user?.id || null;
+      }
+
+      // Update current user ID state
+      setCurrentUserId(effectiveUserId);
+
+      if (!effectiveUserId) {
         console.log('❌ No authenticated user - using default settings');
         // Use default settings for non-authenticated users
         const defaultSettings = { ...DEFAULT_SETTINGS, id: 'default' } as UiSettings;
@@ -141,18 +155,18 @@ export function useUiSettings() {
         return;
       }
 
-      console.log('🔄 Fetching UI settings for user:', user.id);
+      console.log('🔄 Fetching UI settings for user:', effectiveUserId);
 
-      // Add 5-second timeout to prevent hanging
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Settings fetch timeout')), 5000)
+      // Add 15-second timeout to prevent hanging (increased from 5s for slow connections)
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Settings fetch timeout')), 15000)
       );
 
-      // Fetch settings for the current user only
-      // RLS policies will automatically filter to user's data
+      // Fetch settings filtered by user_id
       const fetchPromise = supabase
         .from('ui_settings')
         .select('*')
+        .eq('user_id', effectiveUserId)
         .order('created_at', { ascending: false })
         .limit(1);
 
@@ -171,7 +185,7 @@ export function useUiSettings() {
           .from('ui_settings')
           .insert({
             ...DEFAULT_SETTINGS,
-            user_id: user.id  // Associate settings with current user
+            user_id: effectiveUserId  // Associate settings with current user
           })
           .select()
           .single();
@@ -197,15 +211,22 @@ export function useUiSettings() {
       
       console.log('✅ UI settings fetched successfully');
     } catch (err) {
-      console.error('Error fetching UI settings:', err);
-      
-      // Handle network errors gracefully
+      // Handle network/timeout errors gracefully
       const errorMessage = err instanceof Error ? err.message : String(err);
+
+      // Only log non-timeout errors at error level to avoid console spam
+      if (!errorMessage.includes('timeout')) {
+        console.error('Error fetching UI settings:', err);
+      } else {
+        // Log timeout errors only at warn level (less intrusive)
+        console.warn('⏱️ Settings fetch timed out, using cached settings');
+      }
       
-      if (errorMessage.includes('Failed to fetch') || 
+      if (errorMessage.includes('Failed to fetch') ||
           errorMessage.includes('NetworkError') ||
-          errorMessage.includes('network')) {
-        console.warn('🌐 Network error detected, using cached/default settings');
+          errorMessage.includes('network') ||
+          errorMessage.includes('timeout')) {
+        console.warn('🌐 Network/timeout error detected, using cached/default settings');
         setError(null); // Don't treat network errors as app errors
       } else {
         setError(err instanceof Error ? err : new Error(String(err)));
@@ -241,7 +262,7 @@ export function useUiSettings() {
       // If no localStorage, keep the default settings that are already initialized
     }
     // No finally block - never set loading to false since we never set it to true
-  }, [applyCssVariables]);
+  }, [applyCssVariables, userId]);
 
   const updateSettings = useCallback(async (newSettings: Partial<UiSettings>) => {
     // Apply colors INSTANTLY before any database operation
@@ -259,15 +280,26 @@ export function useUiSettings() {
 
     if (hasColorChanges) {
       // Get current settings to merge with new settings
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Settings fetch timeout')), 5000)
       );
 
-      const fetchPromise = supabase
-        .from('ui_settings')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1);
+      // Use currentUserId for filtering
+      let fetchPromise;
+      if (currentUserId) {
+        fetchPromise = supabase
+          .from('ui_settings')
+          .select('*')
+          .eq('user_id', currentUserId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+      } else {
+        fetchPromise = supabase
+          .from('ui_settings')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1);
+      }
 
       const { data: currentSettings } = await Promise.race([
         fetchPromise,
@@ -327,15 +359,26 @@ export function useUiSettings() {
     // Then update the database in the background
     try {
       // Add timeout for database fetch
-      const timeoutPromise = new Promise((_, reject) => 
+      const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Settings fetch timeout')), 5000)
       );
 
-      const fetchPromise = supabase
-        .from('ui_settings')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1);
+      // Use currentUserId for filtering
+      let fetchPromise;
+      if (currentUserId) {
+        fetchPromise = supabase
+          .from('ui_settings')
+          .select('*')
+          .eq('user_id', currentUserId)
+          .order('created_at', { ascending: false })
+          .limit(1);
+      } else {
+        fetchPromise = supabase
+          .from('ui_settings')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1);
+      }
 
       const { data: currentSettings } = await Promise.race([
         fetchPromise,
@@ -344,7 +387,7 @@ export function useUiSettings() {
 
       if (!currentSettings || currentSettings.length === 0) {
         // Add timeout for insert
-        const insertTimeoutPromise = new Promise((_, reject) => 
+        const insertTimeoutPromise = new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Settings insert timeout')), 5000)
         );
 
@@ -353,6 +396,7 @@ export function useUiSettings() {
           .insert({
             ...DEFAULT_SETTINGS,
             ...newSettings,
+            user_id: currentUserId, // Associate with current user
             updated_at: new Date().toISOString()
           });
 
@@ -405,7 +449,7 @@ export function useUiSettings() {
       // For other errors, still throw
       throw error;
     }
-  }, [fetchSettings, refreshSettings]);
+  }, [fetchSettings, refreshSettings, currentUserId]);
 
   // Single useEffect to handle everything - FIXED ORDER
   useEffect(() => {
@@ -458,12 +502,13 @@ export function useUiSettings() {
           console.log('📡 UI settings subscription status:', status);
         });
       
-      // Set up periodic refresh as a fallback (less frequent to reduce errors)
+      // Set up periodic refresh as a fallback (much less frequent to reduce errors)
+      // Only refresh every 5 minutes and silently fail to avoid console spam
       refreshInterval = setInterval(() => {
-        fetchSettings().catch(err => {
-          console.warn('⚠️ Periodic settings refresh failed (this is normal if offline):', err);
+        fetchSettings().catch(() => {
+          // Silently fail - we already have default/cached settings working
         });
-      }, 60000); // Reduced to 1 minute instead of 30 seconds
+      }, 300000); // Every 5 minutes instead of 1 minute
       
     } catch (subscriptionError) {
       console.warn('⚠️ Could not set up realtime subscription (offline mode):', subscriptionError);

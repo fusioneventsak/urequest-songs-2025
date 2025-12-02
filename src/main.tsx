@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Toaster } from 'react-hot-toast';
 import App from './App';
+import { UserProvider } from './contexts/UserContext';
 import './index.css';
 import { registerServiceWorker, promptPWAInstall, getPWADisplayMode } from './utils/registerSW';
 
@@ -38,11 +39,12 @@ if (!rootElement) {
 // Create root with error boundary
 const root = createRoot(rootElement);
 
-// Render app with error boundary and toast notifications
+// Render app with error boundary, user provider, and toast notifications
 root.render(
   <StrictMode>
-    <App />
-    <Toaster
+    <UserProvider>
+      <App />
+      <Toaster
       position="top-right"
       toastOptions={{
         duration: 4000,
@@ -69,5 +71,6 @@ root.render(
         },
       }}
     />
+    </UserProvider>
   </StrictMode>
 );

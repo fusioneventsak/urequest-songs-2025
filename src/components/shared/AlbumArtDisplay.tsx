@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Music } from 'lucide-react';
 import { useUiSettings } from '../../hooks/useUiSettings';
-import { getOptimizedAlbumArtUrl, type AlbumArtSize } from '../../utils/albumArt';
 import type { Song } from '../../types';
 
 interface AlbumArtDisplayProps {
@@ -25,7 +24,8 @@ export function AlbumArtDisplay({
 }: AlbumArtDisplayProps) {
   const [imageLoadError, setImageLoadError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [optimizedUrl, setOptimizedUrl] = useState<string | undefined>(undefined);
+  const [triedFallback, setTriedFallback] = useState(false);
+  const [currentUrl, setCurrentUrl] = useState<string | undefined>(undefined);
   const { settings } = useUiSettings();
   const accentColor = settings?.frontend_accent_color || '#ff00ff';
 
@@ -33,23 +33,17 @@ export function AlbumArtDisplay({
   const rawUrl = song?.albumArtUrl || albumArtUrl;
   const displayTitle = song?.title || title || 'Album Art';
 
-  // Map component sizes to AlbumArtSize
-  const sizeMap: Record<string, AlbumArtSize> = {
-    xs: 'thumbnail',
-    sm: 'small',
-    medium: 'medium',
-    lg: 'large'
-  };
-
-  // Optimize the URL when rawUrl or size changes
+  // Set URL when rawUrl changes - use as-is without transformation
   useEffect(() => {
-    const optimized = getOptimizedAlbumArtUrl(rawUrl, sizeMap[size]);
-    setOptimizedUrl(optimized);
+    // Don't transform URL - use as-is to avoid CORS/availability issues with different sizes
+    // iTunes URLs are stored with a specific size and that size should work
+    setCurrentUrl(rawUrl);
     setImageLoadError(false);
     setImageLoaded(false);
-  }, [rawUrl, size]);
+    setTriedFallback(false);
+  }, [rawUrl]);
 
-  const displayUrl = optimizedUrl;
+  const displayUrl = currentUrl;
 
   // Size configurations
   const sizeClasses = {
@@ -67,14 +61,27 @@ export function AlbumArtDisplay({
   };
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    console.error('🖼️ Album art failed to load:', {
-      url: displayUrl,
-      title: displayTitle,
-      rawUrl: rawUrl,
-      optimizedUrl: optimizedUrl,
-      naturalWidth: e.currentTarget.naturalWidth,
-      naturalHeight: e.currentTarget.naturalHeight
-    });
+    // If we haven't tried fallback yet and it's an iTunes URL, try different size
+    if (!triedFallback && rawUrl && rawUrl.includes('mzstatic.com')) {
+      // Try different sizes as fallback: 300x300 -> 200x200 -> 100x100
+      const currentSize = rawUrl.match(/\/(\d+)x\d+bb\.jpg$/)?.[1];
+      let fallbackUrl = rawUrl;
+
+      if (currentSize === '600' || currentSize === '300') {
+        fallbackUrl = rawUrl.replace(/\/\d+x\d+bb\.jpg$/, '/200x200bb.jpg');
+      } else if (currentSize === '200') {
+        fallbackUrl = rawUrl.replace(/\/\d+x\d+bb\.jpg$/, '/100x100bb.jpg');
+      }
+
+      if (fallbackUrl !== rawUrl) {
+        setTriedFallback(true);
+        setCurrentUrl(fallbackUrl);
+        return; // Don't set error yet, try fallback first
+      }
+    }
+
+    // Only log at debug level to reduce console noise
+    console.debug('Album art unavailable:', displayTitle);
     setImageLoadError(true);
   };
 
@@ -131,6 +138,7 @@ export function AlbumArtDisplay({
         onError={handleImageError}
         onLoad={handleImageLoad}
         loading="lazy"
+        referrerPolicy="no-referrer"
       />
     </div>
   );

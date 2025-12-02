@@ -5,7 +5,7 @@ import type { Song, SongRequest, RequestFormData, SetList, User } from './types'
 console.log('🔥🔥🔥 APP.TSX FILE LOADED - FRESH CODE 🔥🔥🔥');
 import { LandingPage } from './components/frontend/LandingPage';
 import { UserFrontend } from './components/frontend/UserFrontend';
-import { BackendLogin } from './components/backend/BackendLogin'; 
+import { BackendLogin } from './components/backend/BackendLogin';
 import { SongLibrary } from './components/backend/SongLibrary';
 import { SetListManager } from './components/backend/SetListManager';
 import { QueueView } from './components/backend/QueueView';
@@ -28,6 +28,8 @@ import { Logo } from './components/shared/Logo';
 import { KioskPage } from './components/frontend/KioskPage';
 import { Leaderboard } from './components/frontend/Leaderboard';
 import toast from 'react-hot-toast';
+import { useUserContext, useViewingContext, useEffectiveUserId } from './contexts/UserContext';
+import { getCurrentRoute, type RouteInfo } from './utils/urlRouting';
 
 const DEFAULT_BAND_LOGO = "https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png";
 
@@ -51,6 +53,14 @@ const MAX_PHOTO_SIZE = 250 * 1024; // 250KB limit for database storage
 const MAX_REQUEST_RETRIES = 3;
 
 function App() {
+  // Get user from UserContext for multi-tenancy
+  const { user: contextUser, profile, isLoading: userLoading } = useUserContext();
+  const { viewingUserId, viewingSlug, isResolvingSlug, slugError, isPublicPage } = useViewingContext();
+
+  // The effective user ID: either the viewing user (for public pages) or the authenticated user
+  const effectiveUserId = useEffectiveUserId();
+  const userId = contextUser?.id || null;
+
   // Check localStorage immediately before any state initialization
   const hasSeenWelcomeStored = localStorage.getItem('hasSeenWelcome');
   const savedUser = localStorage.getItem('currentUser');
@@ -59,11 +69,11 @@ function App() {
   // Authentication state
   const [isAdmin, setIsAdmin] = useState(false);
   const [isInitializing, setIsInitializing] = useState(!isFirstTimeUser); // Skip initialization for first-time users
-  // Check initial path immediately to set dashboard state correctly
-  const initialPath = window.location.pathname;
-  const [isDashboard, setIsDashboard] = useState(initialPath.includes(DASHBOARD_PATH));
-  const [isKiosk, setIsKiosk] = useState(initialPath.includes(KIOSK_PATH));
-  const [isLeaderboard, setIsLeaderboard] = useState(initialPath.includes(LEADERBOARD_PATH));
+  // Check initial path immediately to set route states correctly using new routing system
+  const initialRoute = getCurrentRoute();
+  const [isDashboard, setIsDashboard] = useState(initialRoute.type === 'dashboard');
+  const [isKiosk, setIsKiosk] = useState(initialRoute.type === 'kiosk');
+  const [isLeaderboard, setIsLeaderboard] = useState(initialRoute.type === 'leaderboard');
 
   // Minimum preloader display time
   const [minLoadTimePassed, setMinLoadTimePassed] = useState(false);
@@ -91,6 +101,9 @@ function App() {
   // Online state
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  // User's slug for navigation URLs
+  const [userSlug, setUserSlug] = useState<string | null>(null);
+
   // Request processing state
   const requestInProgressRef = useRef(false);
   const requestRetriesRef = useRef(0);
@@ -99,13 +112,15 @@ function App() {
   // Optimistic updates state
   const [optimisticVotes, setOptimisticVotes] = useState<Map<string, number>>(new Map());
 
-  // Use custom hooks for data syncing
-  console.log('🔗 App.tsx: Passing setRequests to useRequestSync');
+  // Use custom hooks for data syncing with effectiveUserId for multi-tenancy
+  // effectiveUserId is either the viewing user (for public pages) or the authenticated user
+  console.log('🔗 App.tsx: Passing setRequests to useRequestSync with effectiveUserId:', effectiveUserId);
   const { reconnectRequests, refresh: refreshRequests } = useRequestSync({
     requests,
     setRequests,
     isOnline,
-    currentUser
+    currentUser,
+    userId: effectiveUserId // Use effectiveUserId for multi-tenancy support
   });
 
   // Debug: Log requests state changes
@@ -119,16 +134,18 @@ function App() {
   const { reconnectSongs } = useSongSync({
     songs,
     setSongs,
-    isOnline
+    isOnline,
+    userId: effectiveUserId // Use effectiveUserId for multi-tenancy support
   });
 
   const { reconnectSetLists } = useSetListSync({
     setLists,
     setSetLists,
-    isOnline
+    isOnline,
+    userId: effectiveUserId // Use effectiveUserId for multi-tenancy support
   });
 
-  const { settings, loading: settingsLoading, updateSettings } = useUiSettings();
+  const { settings, loading: settingsLoading, updateSettings } = useUiSettings({ userId: effectiveUserId });
 
   // Cleanup on unmount
   useEffect(() => {
@@ -165,28 +182,16 @@ function App() {
     };
   }, [reconnectRequests, reconnectSongs, reconnectSetLists]);
 
-  // Handle browser navigation
+  // Handle browser navigation using new URL routing system
   useEffect(() => {
     const checkPath = () => {
-      const path = window.location.pathname;
+      const route = getCurrentRoute();
+      console.log('🛣️ [App] Route detected:', route);
 
-      if (path.includes(DASHBOARD_PATH)) {
-        setIsDashboard(true);
-        setIsKiosk(false);
-        setIsLeaderboard(false);
-      } else if (path.includes(KIOSK_PATH)) {
-        setIsKiosk(true);
-        setIsDashboard(false);
-        setIsLeaderboard(false);
-      } else if (path.includes(LEADERBOARD_PATH)) {
-        setIsLeaderboard(true);
-        setIsDashboard(false);
-        setIsKiosk(false);
-      } else {
-        setIsDashboard(false);
-        setIsKiosk(false);
-        setIsLeaderboard(false);
-      }
+      // Update route states based on parsed route
+      setIsDashboard(route.type === 'dashboard');
+      setIsKiosk(route.type === 'kiosk');
+      setIsLeaderboard(route.type === 'leaderboard');
     };
 
     checkPath();
@@ -201,6 +206,38 @@ function App() {
       window.removeEventListener('popstate', checkPathSpecialCases);
     };
   }, []);
+
+  // Load user's slug for navigation URLs
+  useEffect(() => {
+    const loadUserSlug = async () => {
+      if (!userId) {
+        setUserSlug(null);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('slug')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          console.warn('Error loading user slug:', error);
+          return;
+        }
+
+        if (data?.slug) {
+          setUserSlug(data.slug);
+          console.log('📎 [App] Loaded user slug:', data.slug);
+        }
+      } catch (error) {
+        console.error('Error loading user slug:', error);
+      }
+    };
+
+    loadUserSlug();
+  }, [userId]);
 
   // Enforce minimum preloader display time (3 seconds) with aggressive fallback timeouts
   useEffect(() => {
@@ -261,37 +298,9 @@ function App() {
         console.log('🔄 [Auth] Setting currentUser immediately:', userObject);
         setCurrentUser(userObject);
         
-        // Try to fetch profile data asynchronously (optional enhancement)
-        console.log('🔍 [Auth] Attempting to fetch profile data...');
-        try {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('id, email, full_name, avatar_url')
-            .eq('id', user.id)
-            .single();
-          
-          console.log('📊 [Auth] Profile fetch result:', { profileData, profileError });
-          
-          if (profileData && !profileError) {
-            console.log('✅ [Auth] Profile found, updating user data');
-            
-            // Update user with profile data
-            const updatedUserObject = {
-              id: user.id,
-              name: profileData.full_name || userName,
-              photo: profileData.avatar_url || userPhoto,
-              email: profileData.email || userEmail
-            };
-            
-            console.log('🔄 [Auth] Updating currentUser with profile data:', updatedUserObject);
-            setCurrentUser(updatedUserObject);
-          } else {
-            console.log('ℹ️ [Auth] No profile data available, using auth data only');
-          }
-        } catch (profileError) {
-          console.warn('⚠️ [Auth] Profile fetch failed, continuing with auth data:', profileError);
-          // User is already set with auth data, so continue
-        }
+        // Profile fetch DISABLED - profiles table has RLS issues
+        // User data from auth is sufficient for the app to function
+        console.log('ℹ️ [Auth] Profile fetch disabled - using auth data only');
         
         console.log('✅ [Auth] User authentication complete');
       } else {
@@ -416,20 +425,31 @@ function App() {
     setIsDashboard(true);
     setIsKiosk(false);
   }, []);
-  
-  // Handle navigation to frontend
+
+  // Handle navigation to frontend (request page)
+  // Uses slug-based URL if user has a slug, otherwise falls back to root
   const navigateToFrontend = useCallback(() => {
-    window.history.pushState({}, '', '/');
+    if (userSlug) {
+      window.history.pushState({}, '', `/request/${userSlug}`);
+    } else {
+      window.history.pushState({}, '', '/');
+    }
     setIsDashboard(false);
     setIsKiosk(false);
-  }, []);
+  }, [userSlug]);
+
   // Handle navigation to kiosk mode
+  // Uses slug-based URL if user has a slug
   const navigateToKiosk = useCallback(() => {
-    window.history.pushState({}, '', `/${KIOSK_PATH}`);
+    if (userSlug) {
+      window.history.pushState({}, '', `/kiosk/${userSlug}`);
+    } else {
+      window.history.pushState({}, '', `/${KIOSK_PATH}`);
+    }
     setIsDashboard(false);
     setIsKiosk(true);
     setIsAdmin(true);
-  }, []);
+  }, [userSlug]);
 
   // Handle admin login - called after successful Supabase auth
   const handleAdminLogin = useCallback(async () => {
@@ -546,6 +566,10 @@ function App() {
   }, []);
 
   const handleDeleteSong = useCallback(async (songId: string) => {
+    // Optimistic update - remove from UI immediately
+    const previousSongs = songs;
+    setSongs(prev => prev.filter(s => s.id !== songId));
+
     try {
       const { error } = await supabase
         .from('songs')
@@ -553,14 +577,16 @@ function App() {
         .eq('id', songId);
 
       if (error) throw error;
-      
+
       toast.success('Song deleted successfully!');
-      // The realtime subscription will update the songs list
+      // Realtime subscription will confirm, but UI is already updated
     } catch (error) {
       console.error('Error deleting song:', error);
+      // Rollback on error
+      setSongs(previousSongs);
       toast.error('Failed to delete song. Please try again.');
     }
-  }, []);
+  }, [songs]);
 
   // Enhanced request submission with retry logic and optimistic updates
   const handleSubmitRequest = useCallback(async (data: RequestFormData): Promise<boolean> => {
@@ -606,6 +632,14 @@ function App() {
         }]
       };
 
+      // Get user_id for multi-tenancy
+      const { data: { user } } = await supabase.auth.getUser();
+      const effectiveUserId = userId || user?.id;
+
+      if (!effectiveUserId) {
+        throw new Error('You must be logged in to submit requests');
+      }
+
       const { error } = await supabase
         .from('requests')
         .insert([{
@@ -617,6 +651,7 @@ function App() {
           is_locked: false,
           is_played: false,
           is_active: true,  // New requests are active (visible in queue)
+          user_id: effectiveUserId,  // Multi-tenancy: associate with user
           created_at: new Date().toISOString()
         }]);
 
@@ -631,7 +666,8 @@ function App() {
           name: requesterName,
           photo: requesterPhoto || '',
           message: data.message || '',
-          source: data.source || 'web' // Track request source (kiosk or web)
+          source: data.source || 'web', // Track request source (kiosk or web)
+          user_id: effectiveUserId  // Multi-tenancy: associate with user
           // created_at is automatically set by the database
         }]);
 
@@ -686,7 +722,7 @@ function App() {
     } finally {
       requestInProgressRef.current = false;
     }
-  }, [reconnectRequests, refreshRequests, currentUser, isOnline]);
+  }, [reconnectRequests, refreshRequests, currentUser, isOnline, userId]);
 
   // Enhanced vote handler with atomic database function and optimistic updates
   const handleVoteRequest = useCallback(async (id: string): Promise<boolean> => {
@@ -713,9 +749,11 @@ function App() {
       console.log(`📊 Optimistically incremented vote for request ${id}: ${currentVotes} -> ${currentVotes + 1}`);
 
       // Use the atomic database function for voting
+      // p_owner_id is the request owner (for multi-tenancy), p_user_id is the voter identifier
       const { data, error } = await supabase.rpc('add_vote', {
         p_request_id: id,
-        p_user_id: currentUser.name // Use name instead of id since user object doesn't have id
+        p_user_id: currentUser.name, // Use name instead of id since user object doesn't have id
+        p_owner_id: userId // Multi-tenancy: owner of the request
       });
 
       if (error) throw error;
@@ -781,8 +819,8 @@ function App() {
 
     try {
       console.log(`🔒 Locking request: ${requestId}`);
-      
-      const { error } = await supabase.rpc('lock_request', { request_id: requestId });
+
+      const { error } = await supabase.rpc('lock_request', { request_id: requestId, p_user_id: userId });
 
       if (error) throw error;
 
@@ -793,7 +831,7 @@ function App() {
       toast.error('Failed to lock request. Please try again.');
       return false;
     }
-  }, [isOnline]);
+  }, [isOnline, userId]);
 
   // Handle unlocking a request
   const handleUnlockRequest = useCallback(async (id: string) => {
@@ -804,8 +842,8 @@ function App() {
 
     try {
       console.log(`🔓 Unlocking request: ${id}`);
-      
-      const { error } = await supabase.rpc('unlock_request', { request_id: id });
+
+      const { error } = await supabase.rpc('unlock_request', { request_id: id, p_user_id: userId });
 
       if (error) throw error;
 
@@ -816,7 +854,7 @@ function App() {
       toast.error('Failed to unlock request. Please try again.');
       return false;
     }
-  }, [isOnline]);
+  }, [isOnline, userId]);
 
   // Handle marking a request as played
   const handleMarkAsPlayed = useCallback(async (id: string) => {
@@ -942,6 +980,15 @@ function App() {
       console.log('📝 Creating new set list:', setList.name);
       const setListId = generateUUID();
 
+      // Get user_id for multi-tenancy
+      const { data: { user } } = await supabase.auth.getUser();
+      const effectiveUserId = userId || user?.id;
+
+      if (!effectiveUserId) {
+        toast.error('You must be logged in to create set lists');
+        return;
+      }
+
       // Insert set list
       const { error: setListError } = await supabase
         .from('set_lists')
@@ -950,7 +997,8 @@ function App() {
           name: setList.name,
           date: setList.date,
           notes: setList.notes,
-          is_active: false
+          is_active: false,
+          user_id: effectiveUserId  // Multi-tenancy: associate with user
         }]);
 
       if (setListError) throw setListError;
@@ -960,7 +1008,8 @@ function App() {
         const setListSongs = setList.songs.map((song, index) => ({
           set_list_id: setListId,
           song_id: song.id,
-          position: index
+          position: index,
+          user_id: effectiveUserId  // Multi-tenancy: associate with user
         }));
 
         const { error: songsError } = await supabase
@@ -988,7 +1037,7 @@ function App() {
       console.error('Error creating set list:', error);
       toast.error('Failed to create set list.');
     }
-  }, [isOnline]);
+  }, [isOnline, userId]);
 
   // Handle updating an existing set list
   const handleUpdateSetList = useCallback(async (setList: SetList) => {
@@ -999,6 +1048,10 @@ function App() {
 
     try {
       console.log('✏️ Updating set list:', setList.id);
+
+      // Get user_id for multi-tenancy
+      const { data: { user } } = await supabase.auth.getUser();
+      const effectiveUserId = userId || user?.id;
 
       // Update set list metadata
       const { error: updateError } = await supabase
@@ -1025,7 +1078,8 @@ function App() {
         const setListSongs = setList.songs.map((song, index) => ({
           set_list_id: setList.id,
           song_id: song.id,
-          position: index
+          position: index,
+          user_id: effectiveUserId  // Multi-tenancy: associate with user
         }));
 
         const { error: insertError } = await supabase
@@ -1040,7 +1094,7 @@ function App() {
       console.error('Error updating set list:', error);
       toast.error('Failed to update set list.');
     }
-  }, [isOnline]);
+  }, [isOnline, userId]);
 
   // Handle deleting a set list
   const handleDeleteSetList = useCallback(async (id: string) => {
@@ -1067,12 +1121,16 @@ function App() {
     }
   }, [isOnline]);
 
-  // Handle setting a set list as active (supports multiple active setlists)
+  // Handle setting a set list as active (only one active at a time)
   const handleSetActive = useCallback(async (id: string) => {
     if (!isOnline) {
       toast.error('Cannot change set list status while offline.');
       return;
     }
+
+    // Get user_id for multi-tenancy
+    const { data: { user } } = await supabase.auth.getUser();
+    const effectiveUserId = userId || user?.id;
 
     try {
       console.log('🎯 Setting active set list:', id);
@@ -1088,53 +1146,72 @@ function App() {
 
       const newActiveStatus = !currentSetList.is_active;
 
-      // Optimistically update the UI immediately
-      setSetLists(prevSetLists => 
-        prevSetLists.map(setList => 
-          setList.id === id 
-            ? { ...setList, isActive: newActiveStatus }
-            : setList
-        )
-      );
+      // If activating this setlist, first deactivate all others for this user
+      if (newActiveStatus && effectiveUserId) {
+        console.log('🔄 Deactivating other setlists for user:', effectiveUserId);
 
-      // Update active status in database (allows multiple active setlists)
+        // Deactivate all other active setlists for this user in database
+        const { error: deactivateError } = await supabase
+          .from('set_lists')
+          .update({
+            is_active: false,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', effectiveUserId)
+          .eq('is_active', true)
+          .neq('id', id);  // Don't deactivate the one we're about to activate
+
+        if (deactivateError) {
+          console.error('Error deactivating other setlists:', deactivateError);
+          throw deactivateError;
+        }
+
+        // Optimistically update the UI - deactivate all others, activate this one
+        setSetLists(prevSetLists =>
+          prevSetLists.map(setList =>
+            setList.id === id
+              ? { ...setList, isActive: true }
+              : { ...setList, isActive: false }
+          )
+        );
+      } else {
+        // Just toggle this setlist (deactivating it)
+        setSetLists(prevSetLists =>
+          prevSetLists.map(setList =>
+            setList.id === id
+              ? { ...setList, isActive: newActiveStatus }
+              : setList
+          )
+        );
+      }
+
+      // Update active status in database for the clicked setlist
       const { error: updateError } = await supabase
         .from('set_lists')
-        .update({ 
+        .update({
           is_active: newActiveStatus,
           updated_at: new Date().toISOString()
         })
         .eq('id', id);
 
       if (updateError) {
-        // Revert optimistic update on error
-        setSetLists(prevSetLists => 
-          prevSetLists.map(setList => 
-            setList.id === id 
-              ? { ...setList, isActive: !newActiveStatus }
-              : setList
-          )
-        );
+        // Revert optimistic update on error - refetch from database
+        console.error('Error updating setlist, refetching state...');
         throw updateError;
       }
 
-      // Show success message with count of active setlists
-      const activeCount = setLists.filter(sl => 
-        sl.id === id ? newActiveStatus : sl.isActive
-      ).length;
-      
       if (newActiveStatus) {
-        toast.success(`Set list activated! (${activeCount} active setlist${activeCount !== 1 ? 's' : ''})`);
+        toast.success('Set list activated!');
       } else {
-        toast.success(`Set list deactivated! (${activeCount} active setlist${activeCount !== 1 ? 's' : ''})`);
+        toast.success('Set list deactivated!');
       }
 
-      console.log(`✅ Set list ${newActiveStatus ? 'activated' : 'deactivated'}. Total active: ${activeCount}`);
+      console.log(`✅ Set list ${newActiveStatus ? 'activated' : 'deactivated'}`);
     } catch (error) {
       console.error('Error setting active set list:', error);
       toast.error('Failed to change set list status.');
     }
-  }, [isOnline, setLists]);
+  }, [isOnline, setLists, userId]);
 
   // Create merged requests with optimistic updates
   const mergedRequests = useMemo(() => {
@@ -1167,13 +1244,12 @@ function App() {
   }, [requests, optimisticVotes]);
 
   // Show loading screen - enforce minimum display time
+  // Note: userLoading removed from condition - profile fetch is optional and shouldn't block app
   const shouldShowLoader = isInitializing || settingsLoading || !minLoadTimePassed;
 
   if (shouldShowLoader) {
     // Debug logging
-    if (isInitializing || settingsLoading) {
-      console.log('⏳ Still loading:', { isInitializing, settingsLoading, minLoadTimePassed });
-    }
+    console.log('⏳ Still loading:', { isInitializing, settingsLoading, userLoading, minLoadTimePassed });
     
     // Show branded preloader for minimum 3 seconds
     return (
@@ -1289,6 +1365,7 @@ function App() {
                 onResetQueue={handleResetQueue}
                 isOnline={isOnline}
                 activeSetList={combinedActiveSetList}
+                userId={userId}
               />
             )}
             {activeBackendTab === 'setlists' && (

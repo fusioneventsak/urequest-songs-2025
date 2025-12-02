@@ -1,10 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Camera, User as UserIcon, Music, ThumbsUp } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Camera, User as UserIcon, Music, ThumbsUp, AlertCircle, X } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import { supabase } from '../../utils/supabase';
 import { Logo } from '../shared/Logo';
 import { SongList } from '../SongList';
 import { Ticker } from '../Ticker';
 import { BackToTopButton } from '../shared/BackToTopButton';
+import { UpvoteList } from './UpvoteList';
+import { AlbumArtDisplay } from '../shared/AlbumArtDisplay';
+import { generateDefaultAvatar } from '../../utils/photoStorage';
 import { useUiSettings } from '../../hooks/useUiSettings';
+import { useViewingContext } from '../../contexts/UserContext';
 import toast from 'react-hot-toast';
 import type { Song, SongRequest, RequestFormData, SetList } from '../../types';
 
@@ -39,6 +45,9 @@ export function KioskPage({
 
   const mountedRef = useRef(true);
   const { settings } = useUiSettings();
+
+  // Multi-tenancy: Get viewing context for slug-based public access
+  const { viewingSlug, isResolvingSlug, slugError, isPublicPage } = useViewingContext();
 
   // Cleanup on unmount
   useEffect(() => {
@@ -268,12 +277,25 @@ export function KioskPage({
       // Generate a unique kiosk user ID
       const kioskUserId = `kiosk_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
+      // Get the owner_id from the request for multi-tenancy
+      const ownerId = currentRequest?.user_id;
+
+      console.log('🗳️ [Kiosk Vote] Attempting vote:', {
+        requestId,
+        kioskUserId,
+        ownerId,
+        requestTitle: currentRequest?.title
+      });
+
       // Use the atomic database function for voting
       const { data, error } = await supabase
         .rpc('add_vote', {
           p_request_id: requestId,
-          p_user_id: kioskUserId
+          p_user_id: kioskUserId,
+          p_owner_id: ownerId // Multi-tenancy: owner of the request
         });
+
+      console.log('🗳️ [Kiosk Vote] RPC result:', { data, error });
 
       if (error) {
         console.error('Error in add_vote RPC:', error);
@@ -320,6 +342,44 @@ export function KioskPage({
   }, [requests, optimisticVotes, votingStates]);
 
   const remainingChars = 100 - message.length;
+
+  // Show error if slug couldn't be resolved (band not found)
+  if (isPublicPage && slugError) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center p-4"
+        style={{
+          background: 'linear-gradient(135deg, #13091f, #0a0513)'
+        }}
+      >
+        <div className="max-w-md w-full bg-gray-800/50 rounded-xl p-8 text-center border border-red-500/20">
+          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-white mb-2">Band Not Found</h1>
+          <p className="text-gray-400 mb-6">{slugError}</p>
+          <p className="text-sm text-gray-500">
+            If you received this link from someone, please ask them to check the URL is correct.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading while resolving slug
+  if (isPublicPage && isResolvingSlug) {
+    return (
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{
+          background: 'linear-gradient(135deg, #13091f, #0a0513)'
+        }}
+      >
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-neon-pink border-t-transparent rounded-full animate-spin" />
+          <p className="text-white text-lg">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Show loading screen while images preload
   if (!imagesLoaded) {
@@ -410,10 +470,10 @@ export function KioskPage({
 
         <Logo
           url={logoUrl}
-          className="mx-auto h-[103.5px]"
+          className="mx-auto h-[140px] -mb-2"
         />
         <h1
-          className="text-3xl font-bold mb-2 -mt-20"
+          className="text-3xl font-bold mb-2"
           style={{ color: accentColor, textShadow: `0 0 10px ${accentColor}` }}
         >
           uRequest Live

@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Save, Upload, Loader2, QrCode, Palette, RefreshCw } from 'lucide-react';
+import { Save, Upload, Loader2, QrCode, Palette, RefreshCw, Link2, Copy, Check, ExternalLink } from 'lucide-react';
 import { LogoUploader } from './LogoUploader';
 import { useUiSettings } from '../../hooks/useUiSettings';
+import { useUserContext } from '../../contexts/UserContext';
+import { validateSlug, isSlugAvailable, generatePublicUrl } from '../../utils/urlRouting';
+import { supabase } from '../../utils/supabase';
 
 // Reusable color picker component with gradient support
 interface ColorPickerWithGradientProps {
@@ -149,9 +152,20 @@ function ColorPickerWithGradient({
 
 export function SettingsManager() {
   const { settings, loading = false, initialized = true, updateSettings } = useUiSettings();
+  const { userId, user, profile } = useUserContext();
 
   // Band settings
   const [bandName, setBandName] = useState(settings?.band_name || 'uRequest Live');
+
+  // Slug/URL settings
+  const [slug, setSlug] = useState('');
+  const [slugInput, setSlugInput] = useState('');
+  const [slugError, setSlugError] = useState<string | null>(null);
+  const [slugSuccess, setSlugSuccess] = useState(false);
+  const [isSavingSlug, setIsSavingSlug] = useState(false);
+  const [isCheckingSlug, setIsCheckingSlug] = useState(false);
+  const [slugAvailable, setSlugAvailable] = useState<boolean | null>(null);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
   // Basic colors (kept for backward compatibility)
   const [primaryColor, setPrimaryColor] = useState(settings?.primary_color || '#ff00ff');
@@ -276,6 +290,126 @@ export function SettingsManager() {
       setPhotoboothUrl(settings.photobooth_url || '');
     }
   }, [settings]);
+
+  // Load slug from profiles table
+  useEffect(() => {
+    const loadSlug = async () => {
+      if (!userId) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('slug')
+          .eq('id', userId)
+          .single();
+
+        if (error) {
+          console.warn('Error loading slug:', error);
+          return;
+        }
+
+        if (data?.slug) {
+          setSlug(data.slug);
+          setSlugInput(data.slug);
+        }
+      } catch (error) {
+        console.error('Error loading slug:', error);
+      }
+    };
+
+    loadSlug();
+  }, [userId]);
+
+  // Debounced slug availability check
+  useEffect(() => {
+    if (!slugInput || slugInput === slug) {
+      setSlugAvailable(null);
+      setSlugError(null);
+      return;
+    }
+
+    const validation = validateSlug(slugInput);
+    if (!validation.valid) {
+      setSlugError(validation.error || 'Invalid URL format');
+      setSlugAvailable(false);
+      return;
+    }
+
+    setSlugError(null);
+    setIsCheckingSlug(true);
+
+    const timer = setTimeout(async () => {
+      try {
+        const available = await isSlugAvailable(slugInput);
+        setSlugAvailable(available);
+        if (!available) {
+          setSlugError('This URL is already taken');
+        }
+      } catch (error) {
+        console.error('Error checking slug availability:', error);
+      } finally {
+        setIsCheckingSlug(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [slugInput, slug]);
+
+  // Save slug
+  const handleSaveSlug = async () => {
+    if (!userId || !slugInput || slugInput === slug || !slugAvailable) return;
+
+    setIsSavingSlug(true);
+    setSlugError(null);
+    setSlugSuccess(false);
+
+    try {
+      // Get user email from auth context (required by profiles table)
+      const userEmail = user?.email;
+      if (!userEmail) {
+        setSlugError('Unable to save. Please log out and log back in.');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userId,
+          email: userEmail,
+          slug: slugInput.toLowerCase(),
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+
+      if (error) {
+        if (error.code === '23505') {
+          setSlugError('This URL is already taken. Please choose another.');
+        } else {
+          throw error;
+        }
+        return;
+      }
+
+      setSlug(slugInput.toLowerCase());
+      setSlugSuccess(true);
+      setTimeout(() => setSlugSuccess(false), 5000);
+    } catch (error) {
+      console.error('Error saving slug:', error);
+      setSlugError('Failed to save URL. Please try again.');
+    } finally {
+      setIsSavingSlug(false);
+    }
+  };
+
+  // Copy URL to clipboard
+  const copyToClipboard = async (url: string, type: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedUrl(type);
+      setTimeout(() => setCopiedUrl(null), 2000);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -428,6 +562,195 @@ export function SettingsManager() {
               This name will appear under the logo in the header
             </p>
           </div>
+        </div>
+
+        {/* Public URL / Slug Section */}
+        <div className="pb-4 border-b border-gray-700">
+          <h4 className="text-md font-medium text-white mb-3 flex items-center">
+            <Link2 className="w-4 h-4 mr-2" />
+            Public URL (Shareable Links)
+          </h4>
+          <p className="text-sm text-gray-400 mb-4">
+            Set your unique URL identifier so guests can access your request page, kiosk, and voting without logging in.
+          </p>
+
+          {/* Slug Input */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-white mb-2">
+              Your URL Identifier
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 flex items-center">
+                <span className="bg-gray-700 text-gray-400 px-3 py-2 rounded-l text-sm border border-r-0 border-gray-600">
+                  {window.location.origin}/request/
+                </span>
+                <input
+                  type="text"
+                  value={slugInput}
+                  onChange={(e) => setSlugInput(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  className={`input-field text-gray-800 flex-1 rounded-l-none ${
+                    slugError ? 'border-red-500' :
+                    slugAvailable === true ? 'border-green-500' : ''
+                  }`}
+                  maxLength={30}
+                  placeholder="your-band-name"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={handleSaveSlug}
+                disabled={isSavingSlug || !slugAvailable || slugInput === slug || !slugInput}
+                className={`px-4 py-2 rounded font-medium text-sm transition-colors ${
+                  slugAvailable && slugInput !== slug && slugInput
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                }`}
+              >
+                {isSavingSlug ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  'Save URL'
+                )}
+              </button>
+            </div>
+
+            {/* Status Messages */}
+            <div className="mt-2">
+              {isCheckingSlug && (
+                <p className="text-xs text-gray-400 flex items-center">
+                  <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                  Checking availability...
+                </p>
+              )}
+              {!isCheckingSlug && slugAvailable === true && slugInput !== slug && (
+                <p className="text-xs text-green-400">✓ This URL is available!</p>
+              )}
+              {slugError && (
+                <p className="text-xs text-red-400">✗ {slugError}</p>
+              )}
+              {slugSuccess && (
+                <p className="text-xs text-green-400">✓ URL saved successfully!</p>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-400 mt-2">
+              Use lowercase letters, numbers, and hyphens only. 3-30 characters.
+            </p>
+          </div>
+
+          {/* Shareable URLs - Only show if slug is set */}
+          {slug && (
+            <div className="bg-gray-800/50 rounded-lg p-4 space-y-3">
+              <h5 className="text-sm font-medium text-white mb-2">Your Shareable Links:</h5>
+
+              {/* Request Page URL */}
+              <div className="flex items-center justify-between bg-gray-700/50 rounded p-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-400 mb-1">Request Page (for guests)</p>
+                  <p className="text-sm text-neon-pink truncate">
+                    {generatePublicUrl('request', slug)}
+                  </p>
+                </div>
+                <div className="flex gap-2 ml-2">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(generatePublicUrl('request', slug), 'request')}
+                    className="p-2 hover:bg-gray-600 rounded transition-colors"
+                    title="Copy URL"
+                  >
+                    {copiedUrl === 'request' ? (
+                      <Check className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+                  <a
+                    href={generatePublicUrl('request', slug)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 hover:bg-gray-600 rounded transition-colors"
+                    title="Open in new tab"
+                  >
+                    <ExternalLink className="w-4 h-4 text-gray-400" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Kiosk Page URL */}
+              <div className="flex items-center justify-between bg-gray-700/50 rounded p-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-400 mb-1">Kiosk Display (for venue screens)</p>
+                  <p className="text-sm text-neon-pink truncate">
+                    {generatePublicUrl('kiosk', slug)}
+                  </p>
+                </div>
+                <div className="flex gap-2 ml-2">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(generatePublicUrl('kiosk', slug), 'kiosk')}
+                    className="p-2 hover:bg-gray-600 rounded transition-colors"
+                    title="Copy URL"
+                  >
+                    {copiedUrl === 'kiosk' ? (
+                      <Check className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+                  <a
+                    href={generatePublicUrl('kiosk', slug)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 hover:bg-gray-600 rounded transition-colors"
+                    title="Open in new tab"
+                  >
+                    <ExternalLink className="w-4 h-4 text-gray-400" />
+                  </a>
+                </div>
+              </div>
+
+              {/* Leaderboard URL */}
+              <div className="flex items-center justify-between bg-gray-700/50 rounded p-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-400 mb-1">Leaderboard (public voting results)</p>
+                  <p className="text-sm text-neon-pink truncate">
+                    {generatePublicUrl('leaderboard', slug)}
+                  </p>
+                </div>
+                <div className="flex gap-2 ml-2">
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(generatePublicUrl('leaderboard', slug), 'leaderboard')}
+                    className="p-2 hover:bg-gray-600 rounded transition-colors"
+                    title="Copy URL"
+                  >
+                    {copiedUrl === 'leaderboard' ? (
+                      <Check className="w-4 h-4 text-green-400" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-gray-400" />
+                    )}
+                  </button>
+                  <a
+                    href={generatePublicUrl('leaderboard', slug)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 hover:bg-gray-600 rounded transition-colors"
+                    title="Open in new tab"
+                  >
+                    <ExternalLink className="w-4 h-4 text-gray-400" />
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {!slug && (
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-3">
+              <p className="text-sm text-yellow-400">
+                ⚠️ Set your URL identifier above to enable public shareable links for guests.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Primary Colors Section */}
