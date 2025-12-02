@@ -100,18 +100,39 @@ export function UserFrontend({
     return activeSetList?.songs || songs;
   }, [activeSetList, songs]);
 
-  // Filter songs based on search
+  // Build a set of played song keys for fast lookup
+  const playedSongKeys = useMemo(() => {
+    const played = new Set<string>();
+    requests.forEach(request => {
+      if (request.isPlayed) {
+        // Create a key from title|artist (lowercase, trimmed)
+        const key = `${request.title.toLowerCase().trim()}|${(request.artist || '').toLowerCase().trim()}`;
+        played.add(key);
+      }
+    });
+    console.log(`🎵 [UserFrontend] ${played.size} songs marked as played`);
+    return played;
+  }, [requests]);
+
+  // Filter songs based on search AND exclude played songs
   const filteredSongs = useMemo(() => {
-    if (!searchTerm.trim()) return availableSongs;
-    
+    // First filter out played songs
+    const nonPlayedSongs = availableSongs.filter(song => {
+      const key = `${song.title.toLowerCase().trim()}|${song.artist.toLowerCase().trim()}`;
+      return !playedSongKeys.has(key);
+    });
+
+    // Then apply search filter
+    if (!searchTerm.trim()) return nonPlayedSongs;
+
     const searchLower = searchTerm.toLowerCase();
-    return availableSongs.filter(song => {
+    return nonPlayedSongs.filter(song => {
       return (
         song.title.toLowerCase().includes(searchLower) ||
         song.artist.toLowerCase().includes(searchLower)
       );
     });
-  }, [availableSongs, searchTerm]);
+  }, [availableSongs, searchTerm, playedSongKeys]);
 
   // Simplified vote handler - no temporary request validation needed
   const handleVote = useCallback(async (requestId: string): Promise<boolean> => {
@@ -418,7 +439,8 @@ export function UserFrontend({
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search songs by title, artist, or genre..."
-                  className="w-full pl-4 pr-4 py-3 bg-neon-purple/10 border border-neon-purple/20 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-neon-pink"
+                  className="w-full pl-4 pr-4 py-3 bg-neon-purple/10 border border-neon-purple/20 rounded-lg placeholder-gray-400 focus:outline-none focus:border-neon-pink"
+                  style={{ color: '#1a1a1a' }}
                 />
               </div>
 

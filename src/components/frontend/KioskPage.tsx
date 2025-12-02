@@ -193,19 +193,41 @@ export function KioskPage({
     return activeSetList?.songs || songs;
   }, [activeSetList, songs]);
 
+  // Build a set of played song keys for fast lookup
+  const playedSongKeys = useMemo(() => {
+    const played = new Set<string>();
+    requests.forEach(request => {
+      if (request.isPlayed) {
+        // Create a key from title|artist (lowercase, trimmed)
+        const key = `${request.title.toLowerCase().trim()}|${(request.artist || '').toLowerCase().trim()}`;
+        played.add(key);
+      }
+    });
+    console.log(`🎵 [KioskPage] ${played.size} songs marked as played`);
+    return played;
+  }, [requests]);
+
   // Filter songs based on search - MUST come before useEffect that uses it
+  // Also exclude played songs so users can't request them again
   const filteredSongs = useMemo(() => {
-    if (!searchTerm.trim()) return availableSongs;
+    // First filter out played songs
+    const nonPlayedSongs = availableSongs.filter(song => {
+      const key = `${song.title.toLowerCase().trim()}|${song.artist.toLowerCase().trim()}`;
+      return !playedSongKeys.has(key);
+    });
+
+    // Then apply search filter
+    if (!searchTerm.trim()) return nonPlayedSongs;
 
     const searchLower = searchTerm.toLowerCase();
-    return availableSongs.filter(song => {
+    return nonPlayedSongs.filter(song => {
       return (
         song.title.toLowerCase().includes(searchLower) ||
         song.artist.toLowerCase().includes(searchLower) ||
         (song.genre?.toLowerCase() || '').includes(searchLower)
       );
     });
-  }, [availableSongs, searchTerm]);
+  }, [availableSongs, searchTerm, playedSongKeys]);
 
 
   // Create merged requests with optimistic votes
