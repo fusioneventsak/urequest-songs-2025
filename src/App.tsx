@@ -907,60 +907,6 @@ function App() {
     }
   }, [isOnline, requests]);
 
-  // Handle removing a request with optimistic updates
-  const handleRemoveRequest = useCallback(async (id: string) => {
-    if (!isOnline) {
-      toast.error('Cannot remove requests while offline. Please check your internet connection.');
-      return false;
-    }
-
-    // Optimistic update - remove from UI immediately
-    const originalRequests = [...requests];
-    const updatedRequests = requests.filter(req => req.id !== id);
-    setRequests(updatedRequests);
-
-    try {
-      console.log(`🗑️ Removing request: ${id}`);
-      
-      // Delete requesters first (foreign key constraint)
-      const { error: requestersError } = await supabase
-        .from('requesters')
-        .delete()
-        .eq('request_id', id);
-
-      if (requestersError) throw requestersError;
-
-      // Delete user votes
-      const { error: votesError } = await supabase
-        .from('user_votes')
-        .delete()
-        .eq('request_id', id);
-
-      if (votesError) throw votesError;
-
-      // Delete the request
-      const { error: requestError } = await supabase
-        .from('requests')
-        .delete()
-        .eq('id', id);
-
-      if (requestError) throw requestError;
-
-      console.log('✅ Request removed successfully:', id);
-      toast.success('Request removed!');
-      // Real-time subscription will handle updates for other clients
-      return true;
-    } catch (error) {
-      console.error('Error removing request:', error);
-      
-      // Revert optimistic update on error
-      setRequests(originalRequests);
-      
-      toast.error('Failed to remove request. Please try again.');
-      return false;
-    }
-  }, [isOnline]);
-
   // Handle resetting the entire queue
   const handleResetQueue = useCallback(async () => {
     if (!isOnline) {
@@ -1383,7 +1329,6 @@ function App() {
                 onLockRequest={handleLockRequest}
                 onUnlockRequest={handleUnlockRequest}
                 onMarkAsPlayed={handleMarkAsPlayed}
-                onRemoveRequest={handleRemoveRequest}
                 onResetQueue={handleResetQueue}
                 isOnline={isOnline}
                 activeSetList={combinedActiveSetList}
