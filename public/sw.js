@@ -1,6 +1,6 @@
 // Service Worker for uRequest Live PWA
-const CACHE_NAME = 'urequest-live-v3';
-const RUNTIME_CACHE = 'urequest-runtime-v3';
+const CACHE_NAME = 'urequest-live-v4';
+const RUNTIME_CACHE = 'urequest-runtime-v4';
 const MAX_CACHE_SIZE = 50; // Maximum number of items in runtime cache
 const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 

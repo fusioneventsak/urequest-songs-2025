@@ -9,7 +9,7 @@
     <!-- PWA Meta Tags -->
     <meta name="application-name" content="uRequest Live" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <meta name="apple-mobile-web-app-title" content="uRequest Live" />
     <meta name="description" content="Interactive song request platform for live bands and their audience" />
     <meta name="format-detection" content="telephone=no" />
@@ -122,10 +122,21 @@
         scroll-behavior: smooth;
       }
 
+      /* iOS Safe Area support for notch/dynamic island */
       #root {
         min-height: 100vh;
+        min-height: -webkit-fill-available;
         background: radial-gradient(ellipse at center, rgba(255, 0, 255, 0.2), transparent 60%),
                     linear-gradient(to bottom, #000000, rgba(255, 0, 255, 0.1), #000000);
+        padding-top: env(safe-area-inset-top);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
+
+      /* Ensure html also respects safe areas */
+      html {
+        height: -webkit-fill-available;
       }
 
       /* Branded Loading Preloader */
