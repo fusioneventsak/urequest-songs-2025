@@ -1,13 +1,13 @@
 // Service Worker for uRequest Live PWA
-const CACHE_NAME = 'urequest-live-v2';
-const RUNTIME_CACHE = 'urequest-runtime-v2';
+const CACHE_NAME = 'urequest-live-v3';
+const RUNTIME_CACHE = 'urequest-runtime-v3';
 const MAX_CACHE_SIZE = 50; // Maximum number of items in runtime cache
 const MAX_CACHE_AGE = 7 * 24 * 60 * 60 * 1000; // 7 days in milliseconds
 
 // Assets to cache on install
 const PRECACHE_ASSETS = [
   '/',
-  '/backend',
+  '/dashboard',
   '/index.html',
   '/kiosk',
   '/queue',
@@ -186,8 +186,8 @@ self.addEventListener('push', (event) => {
 
   const options = {
     body: event.data ? event.data.text() : 'New song request!',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/icon-72x72.png',
+    icon: 'https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png',
+    badge: 'https://www.fusion-events.ca/wp-content/uploads/2025/03/ulr-wordmark.png',
     vibrate: [200, 100, 200],
     tag: 'urequest-notification',
     requireInteraction: false
@@ -205,7 +205,7 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   event.waitUntil(
-    clients.openWindow('/')
+    clients.openWindow('/dashboard')
   );
 });
 
