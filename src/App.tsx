@@ -632,12 +632,11 @@ function App() {
         }]
       };
 
-      // Get user_id for multi-tenancy
-      const { data: { user } } = await supabase.auth.getUser();
-      const effectiveUserId = userId || user?.id;
-
+      // Get user_id for multi-tenancy - use the effectiveUserId from context
+      // For public pages (like /request/bandname), this is the band owner's ID
+      // For authenticated users, this is their own ID
       if (!effectiveUserId) {
-        throw new Error('You must be logged in to submit requests');
+        throw new Error('Unable to submit request. Please refresh the page and try again.');
       }
 
       const { error } = await supabase
@@ -722,7 +721,7 @@ function App() {
     } finally {
       requestInProgressRef.current = false;
     }
-  }, [reconnectRequests, refreshRequests, currentUser, isOnline, userId]);
+  }, [reconnectRequests, refreshRequests, currentUser, isOnline, effectiveUserId]);
 
   // Enhanced vote handler with atomic database function and optimistic updates
   const handleVoteRequest = useCallback(async (id: string): Promise<boolean> => {

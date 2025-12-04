@@ -9,7 +9,7 @@ import { WelcomeScreen } from '../WelcomeScreen';
 import { Ticker } from '../Ticker';
 import { BackToTopButton } from '../shared/BackToTopButton';
 import { useUiSettings } from '../../hooks/useUiSettings';
-import { useViewingContext } from '../../contexts/UserContext';
+import { useViewingContext, useEffectiveUserId } from '../../contexts/UserContext';
 import toast from 'react-hot-toast';
 import type { Song, SongRequest, User, RequestFormData } from '../../types';
 
@@ -55,10 +55,13 @@ export function UserFrontend({
   const [votingStates, setVotingStates] = useState<Set<string>>(new Set());
 
   const mountedRef = useRef(true);
-  const { settings } = useUiSettings();
 
   // Multi-tenancy: Get viewing context for slug-based public access
   const { viewingSlug, isResolvingSlug, slugError, isPublicPage } = useViewingContext();
+
+  // Get the effective user ID (viewing user for public pages, or authenticated user)
+  const effectiveUserId = useEffectiveUserId();
+  const { settings } = useUiSettings({ userId: effectiveUserId });
 
   // Check if user has seen welcome screen before
   useEffect(() => {

@@ -4,6 +4,7 @@ import { resizeAndCompressImage, getOptimalFileInputAccept } from '../../utils/i
 import { dataURLtoBlob } from '../../utils/photoStorage';
 import { usePhotoStorage } from '../../hooks/usePhotoStorage';
 import { useUiSettings } from '../../hooks/useUiSettings';
+import { useViewingContext, useEffectiveUserId } from '../../contexts/UserContext';
 import type { User } from '../../types';
 
 interface LandingPageProps {
@@ -21,7 +22,11 @@ export function LandingPage({ onComplete, initialUser }: LandingPageProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { uploadPhoto, getDefaultAvatar } = usePhotoStorage();
-  const { settings } = useUiSettings();
+
+  // Get the effective user ID (viewing user for public pages, or authenticated user)
+  const effectiveUserId = useEffectiveUserId();
+  const { settings } = useUiSettings({ userId: effectiveUserId });
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
